@@ -135,20 +135,6 @@
       "file": "versions/1.6.8/Anitsu-1.6.8.user.js",
       "sha256": "d1b3fdc6c740d0f2f9f7b3859a88c2f0873fa05c38cf3c1dd0522e5188acd288",
       "sourceName": "Anitsu 1.6.8.user.js"
-    },
-    {
-      "version": "2.0.0",
-      "variant": "principal",
-      "file": "versions/2.0.0/Anitsu-2.0.0.user.js",
-      "sha256": "65027c5d181b2b6db342fbf456d3935f970aba5db1e21d8f49dc2506f3a2fe38",
-      "sourceName": "Anitsu Downloader 2.0.0.js"
-    },
-    {
-      "version": "2.0.1",
-      "variant": "principal",
-      "file": "versions/2.0.1/Anitsu-2.0.1.user.js",
-      "sha256": "554b7430064261dacc68780c3bfd6d84563693fa8e9d838347019517f9635982",
-      "sourceName": "Anitsu Downloader 2.0.1.js"
     }
   ]
 }

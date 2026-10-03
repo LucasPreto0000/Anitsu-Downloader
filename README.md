@@ -2,7 +2,7 @@
 
 Userscript para o [Anitsu Cloud](https://nuvem.anitsu.moe/) com seleção de arquivos, download em massa, integração com gerenciadores e capas de animes nas pastas.
 
-**Versão recomendada: 1.6.8.** [Instalar o userscript](https://github.com/LucasPreto0000/Anitsu-Downloader/releases/download/v1.6.8/Anitsu-Downloader.user.js) · [Todas as Releases](https://github.com/LucasPreto0000/Anitsu-Downloader/releases) · [Histórico de mudanças](CHANGELOG.md)
+**Versão recomendada: 1.6.8.** [Instalar o userscript](https://github.com/LucasPreto0000/Anitsu-Downloader/releases/download/v1.6.8/Anitsu-Downloader.user.js) · [Release atual](https://github.com/LucasPreto0000/Anitsu-Downloader/releases/tag/v1.6.8) · [Histórico de mudanças](CHANGELOG.md)
 
 ## O que a versão atual oferece
 
@@ -37,18 +37,16 @@ As capas dependem dos resultados e da disponibilidade do AniList. Quando a corre
 
 ## Versões e variantes
 
-Este repositório preserva **21 arquivos históricos distintos**, distribuídos por **17 números de versão**, de 1.5.0 a 1.6.8, além das alternativas 2.0.0 e 2.0.1.
+Este repositório preserva **19 arquivos históricos distintos**, distribuídos por **15 números de versão**, de 1.5.0 a 1.6.8. Apenas a versão **1.6.8** está disponível nas Releases; as anteriores permanecem na pasta de histórico.
 
 - [versions/](versions/) contém os arquivos históricos.
 - [CHANGELOG.md](CHANGELOG.md) explica o que cada versão acrescentou e descreve as variantes.
 - [versions/manifest.json](versions/manifest.json) lista versões, nomes de origem e hashes SHA-256 para conferir a integridade.
 - Anitsu-Downloader.user.js é o instalável recomendado. Anitsu Downloader.js contém a mesma implementação e é mantido por compatibilidade com o nome antigo.
 
-As versões **2.x são uma linha alternativa antiga de reformulação visual**. Elas não incorporam todas as correções posteriores da 1.6.x; por isso, 1.6.8 é a versão recomendada.
-
 Há arquivos com o mesmo número interno e conteúdos diferentes. As variantes sessao, abdm-legado e detector-legado identificam essas diferenças. Em 1.5.0, original e original-lf diferem apenas nas quebras de linha.
 
-Os arquivos em versions/ e os respectivos anexos históricos nas Releases foram preservados byte a byte. Seus metadados podem apontar para o endereço antigo do Greasy Fork. O instalável recomendado foi ajustado para receber atualizações deste GitHub.
+Os arquivos em versions/ foram preservados byte a byte. Seus metadados podem apontar para o endereço antigo do Greasy Fork. O instalável recomendado foi ajustado para receber atualizações deste GitHub.
 
 As notas foram reconstruídas pela comparação do código disponível. A publicação do acervo em 2 de outubro de 2026 não pretende estabelecer datas originais de lançamento nem afirmar que todas as versões históricas foram testadas no site atual.
 

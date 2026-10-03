@@ -2,28 +2,7 @@
 
 Acervo publicado em 2 de outubro de 2026. As datas locais não foram usadas como datas oficiais de lançamento. As descrições abaixo foram reconstruídas a partir da comparação dos arquivos disponíveis. Versões históricas podem conter limitações já corrigidas em versões posteriores.
 
-A versão recomendada é **1.6.8**. As versões 2.x pertencem a uma reformulação alternativa antiga. Variantes com o mesmo número foram preservadas com sufixos; seus números internos `@version` não foram alterados.
-
-## 2.0.1 — linha alternativa
-
-- Revisão alternativa Aurora Control Center com novas camadas visuais, ícones e feedback de carregamento/erro.
-- Acrescenta persistência de sessão por até 30 dias e renovação automática, proteção contra duplicação de operações, cancelamento de requisições e esperas de repetição.
-- Revisa nomes únicos de arquivos, cache da API, troca de pasta durante operações e envio por lotes ao ABDM.
-- É uma linha alternativa histórica; seu número maior não significa que substitui a 1.6.8 recomendada.
-
-Arquivos:
-
-- [Anitsu-2.0.1.user.js](versions/2.0.1/Anitsu-2.0.1.user.js) — principal
-
-## 2.0.0 — linha alternativa
-
-- Linha alternativa com reformulação da interface em formato de central de controle, ajustes de contadores, seleção, feedback e aparência responsiva.
-- Rastreia downloads diretos para permitir cancelamento e revisa o tratamento de falhas e repetição.
-- Esta linha é histórica e não contém todas as melhorias posteriores de capas, chave API e arraste da linha 1.6.x.
-
-Arquivos:
-
-- [Anitsu-2.0.0.user.js](versions/2.0.0/Anitsu-2.0.0.user.js) — principal
+A versão recomendada é **1.6.8**, a única publicada nas Releases. Variantes com o mesmo número foram preservadas com sufixos; seus números internos `@version` não foram alterados.
 
 ## 1.6.8 — recomendada
 
