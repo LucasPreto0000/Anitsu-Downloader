@@ -2,7 +2,7 @@
 // @name         Anitsu Downloader1
 // @name:pt-BR   Anitsu Downloader1
 // @namespace    https://nuvem.anitsu.moe/
-// @version      1.6.8
+// @version      1.6.5
 // @description  Download em massa para o Anitsu Cloud (nuvem.anitsu.moe). Painel flutuante com seleção de arquivos, download direto ou via AB Download Manager, renovação automática de sessão, modo recursivo para baixar pastas inteiras e preview automático da capa do anime (via AniList).
 // @description:pt-BR  Download em massa para o Anitsu Cloud (nuvem.anitsu.moe). Painel flutuante com seleção de arquivos, download direto ou via AB Download Manager, renovação automática de sessão, modo recursivo para baixar pastas inteiras e preview automático da capa do anime (via AniList).
 // @author       TheCyBee & Saitama
@@ -18,8 +18,8 @@
 // @run-at       document-idle
 // @license      MIT
 // @icon         https://nuvem.anitsu.moe/favicon.ico
-// @downloadURL https://raw.githubusercontent.com/LucasPreto0000/Anitsu-Downloader/main/Anitsu-Downloader.user.js
-// @updateURL https://raw.githubusercontent.com/LucasPreto0000/Anitsu-Downloader/main/Anitsu-Downloader.user.js
+// @downloadURL https://update.greasyfork.org/scripts/578627/Anitsu%20Downloader.user.js
+// @updateURL https://update.greasyfork.org/scripts/578627/Anitsu%20Downloader.meta.js
 // ==/UserScript==
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1288,7 +1288,7 @@ function addFolderCover(icon, file, index) {
 // Paleta premium — gradientes e cores ricas
 const C = {
   bg: '#090b12',
-  bgPanel: '#0f121e',
+  bgPanel: 'rgba(15,18,30,0.98)',
   bgHeader: 'rgba(17,20,34,0.96)',
   bgRow: 'rgba(23,27,43,0.52)',
   bgRowHov: 'rgba(38,44,69,0.68)',
@@ -1340,8 +1340,8 @@ GM_addStyle(
   'opacity:0;transform:translateY(16px) scale(.97);' +
   'transition:opacity .2s ease,transform .2s ease;}' +
   '#anu-panel.anu-mounted{opacity:1;transform:translateY(0) scale(1);}' +
-  '#anu-panel.anu-positioned{transform:none;transition:opacity .2s ease;}' +
-  '#anu-panel.anu-dragging{transition:none!important;}' +
+  '#anu-panel.anu-positioned{transition:opacity .2s ease;}' +
+  '#anu-panel.anu-dragging{transition:none!important;will-change:transform;}' +
 
   // Icon wrapper
   '.anu-ic{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;line-height:0;}' +
@@ -3182,28 +3182,21 @@ G('b-retry').onclick = function() {
 let minimised = false;
 
 function keepPanelInViewport() {
-  const maxLeft = Math.max(0, window.innerWidth - panel.offsetWidth);
-  const maxTop = Math.max(0, window.innerHeight - panel.offsetHeight);
+  const r = panel.getBoundingClientRect();
   if (panel.style.left) {
-    const left = parseFloat(panel.style.left);
-    const nextLeft = clamp(left, 0, maxLeft);
-    if (Number.isFinite(left) && nextLeft !== left) { panel.style.left = nextLeft + 'px'; }
+    panel.style.left = clamp(r.left, 0, Math.max(0, window.innerWidth - r.width)) + 'px';
   }
   if (panel.style.top) {
-    const top = parseFloat(panel.style.top);
-    const nextTop = clamp(top, 0, maxTop);
-    if (Number.isFinite(top) && nextTop !== top) { panel.style.top = nextTop + 'px'; }
+    panel.style.top = clamp(r.top, 0, Math.max(0, window.innerHeight - r.height)) + 'px';
   }
 }
 
 function savePanelState() {
   const r = panel.getBoundingClientRect();
-  const left = parseFloat(panel.style.left);
-  const top = parseFloat(panel.style.top);
   writeJsonStorage(PANEL_STATE_KEY, {
-    left: Math.round(Number.isFinite(left) ? left : r.left),
-    top: Math.round(Number.isFinite(top) ? top : r.top),
-    width: panel.offsetWidth,
+    left: Math.round(r.left),
+    top: Math.round(r.top),
+    width: Math.round(r.width),
     minimised: minimised,
   });
 }
@@ -3263,54 +3256,44 @@ consoleToggleBtn.onclick = function() {
 
 setConsoleHidden(localStorage.getItem(CONSOLE_HIDDEN_KEY) === '1', false);
 
-let drag = false, dragStarted = false, pressX = 0, pressY = 0;
+let drag = false, ox = 0, oy = 0;
 let dragOriginLeft = 0, dragOriginTop = 0, dragLeft = 0, dragTop = 0;
 let dragMaxLeft = 0, dragMaxTop = 0, dragFrame = 0;
 G('anu-header').addEventListener('mousedown', function(e) {
   if (e.target.closest && e.target.closest('button,input,select,label')) { return; }
   e.preventDefault();
   drag = true;
-  dragStarted = false;
-  pressX = e.clientX; pressY = e.clientY;
   const r = panel.getBoundingClientRect();
+  ox = e.clientX - r.left; oy = e.clientY - r.top;
   dragOriginLeft = dragLeft = r.left;
   dragOriginTop = dragTop = r.top;
-  dragMaxLeft = Math.max(0, window.innerWidth - panel.offsetWidth);
-  dragMaxTop = Math.max(0, window.innerHeight - panel.offsetHeight);
+  dragMaxLeft = Math.max(0, window.innerWidth - r.width);
+  dragMaxTop = Math.max(0, window.innerHeight - r.height);
+  panel.style.right = 'auto'; panel.style.bottom = 'auto';
+  panel.style.left = r.left + 'px'; panel.style.top = r.top + 'px';
+  panel.classList.add('anu-positioned', 'anu-dragging');
 });
 document.addEventListener('mousemove', function(e) {
   if (!drag) { return; }
-  const dx = e.clientX - pressX;
-  const dy = e.clientY - pressY;
-  if (!dragStarted) {
-    if (dx * dx + dy * dy < 25) { return; }
-    dragStarted = true;
-    panel.classList.add('anu-positioned', 'anu-dragging');
-    panel.style.right = 'auto'; panel.style.bottom = 'auto';
-    panel.style.left = Math.round(dragOriginLeft) + 'px';
-    panel.style.top = Math.round(dragOriginTop) + 'px';
-  }
-  dragLeft = clamp(dragOriginLeft + dx, 0, dragMaxLeft);
-  dragTop = clamp(dragOriginTop + dy, 0, dragMaxTop);
+  dragLeft = clamp(e.clientX - ox, 0, dragMaxLeft);
+  dragTop = clamp(e.clientY - oy, 0, dragMaxTop);
   if (dragFrame) { return; }
   dragFrame = requestAnimationFrame(function() {
     dragFrame = 0;
-    panel.style.left = Math.round(dragLeft) + 'px';
-    panel.style.top = Math.round(dragTop) + 'px';
+    panel.style.transform = 'translate3d(' + (dragLeft - dragOriginLeft) + 'px,' +
+      (dragTop - dragOriginTop) + 'px,0)';
   });
 });
 function finishPanelDrag(e) {
   if (!drag) { return; }
-  drag = false;
-  if (!dragStarted) { return; }
-  dragStarted = false;
   if (e && e.type === 'mouseup') {
-    dragLeft = clamp(dragOriginLeft + e.clientX - pressX, 0, dragMaxLeft);
-    dragTop = clamp(dragOriginTop + e.clientY - pressY, 0, dragMaxTop);
+    dragLeft = clamp(e.clientX - ox, 0, dragMaxLeft);
+    dragTop = clamp(e.clientY - oy, 0, dragMaxTop);
   }
+  drag = false;
   if (dragFrame) { cancelAnimationFrame(dragFrame); dragFrame = 0; }
-  panel.style.left = Math.round(dragLeft) + 'px';
-  panel.style.top = Math.round(dragTop) + 'px';
+  panel.style.left = dragLeft + 'px';
+  panel.style.top = dragTop + 'px';
   panel.style.transform = '';
   panel.classList.remove('anu-dragging');
   savePanelState();
@@ -3324,7 +3307,6 @@ window.addEventListener('resize', debounce(function() {
 restorePanelState();
 if (typeof ResizeObserver !== 'undefined') {
   new ResizeObserver(debounce(function() {
-    if (drag) { return; }
     keepPanelInViewport();
     savePanelState();
   }, 250)).observe(panel);

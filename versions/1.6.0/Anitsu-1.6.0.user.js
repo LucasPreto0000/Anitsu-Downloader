@@ -2,7 +2,7 @@
 // @name         Anitsu Downloader1
 // @name:pt-BR   Anitsu Downloader1
 // @namespace    https://nuvem.anitsu.moe/
-// @version      1.6.8
+// @version      1.6.0
 // @description  Download em massa para o Anitsu Cloud (nuvem.anitsu.moe). Painel flutuante com seleção de arquivos, download direto ou via AB Download Manager, renovação automática de sessão, modo recursivo para baixar pastas inteiras e preview automático da capa do anime (via AniList).
 // @description:pt-BR  Download em massa para o Anitsu Cloud (nuvem.anitsu.moe). Painel flutuante com seleção de arquivos, download direto ou via AB Download Manager, renovação automática de sessão, modo recursivo para baixar pastas inteiras e preview automático da capa do anime (via AniList).
 // @author       TheCyBee & Saitama
@@ -18,8 +18,8 @@
 // @run-at       document-idle
 // @license      MIT
 // @icon         https://nuvem.anitsu.moe/favicon.ico
-// @downloadURL https://raw.githubusercontent.com/LucasPreto0000/Anitsu-Downloader/main/Anitsu-Downloader.user.js
-// @updateURL https://raw.githubusercontent.com/LucasPreto0000/Anitsu-Downloader/main/Anitsu-Downloader.user.js
+// @downloadURL https://update.greasyfork.org/scripts/578627/Anitsu%20Downloader.user.js
+// @updateURL https://update.greasyfork.org/scripts/578627/Anitsu%20Downloader.meta.js
 // ==/UserScript==
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -50,10 +50,8 @@ const ABDM_QUEUE_REFRESH_DELAY_MS = 1500;
 const IDM_TRIGGER_DELAY_MS = 1200;
 const ANILIST_API_URL = 'https://graphql.anilist.co';
 const ANILIST_CACHE_MS = 24 * 60 * 60 * 1000; // 24h — capa/título não mudam
-const ANILIST_TIMEOUT_MS = 12000;
+const ANILIST_TIMEOUT_MS = 8000;
 const ANILIST_MISS_CACHE_MS = 6 * 60 * 60 * 1000; // 6h — evita re-tentar título sem match toda hora
-// 24 buscas por chamada ficam abaixo do limite de complexidade 500 do AniList.
-const ANILIST_BATCH_SIZE = 24;
 const SESSION_COOKIE_DAYS = 30;
 const SESSION_REFRESH_TIMEOUT_MS = 12000;
 const SESSION_AUTO_CHECK_MS = 60 * 1000;
@@ -121,10 +119,7 @@ const anilistInflight = new Map();
 const anilistJobs = [];
 let anilistBusy = false;
 let anilistNextRequestAt = 0;
-let anilistBatchSize = ANILIST_BATCH_SIZE;
-let anilistCacheSaveTimer = null;
-const folderCoverCache = new Map();
-let folderCoverVersion = 0;
+let folderCoverObserver = null;
 let folderLoading = false;
 let hasLoadedFolder = false;
 let currentFolderPath = '';
@@ -336,6 +331,14 @@ function fmt(bytes) {
   return bytes + ' B';
 }
 
+function totalSize(paths) {
+  let total = 0;
+  fileList.forEach(function(f) {
+    if (!f.is_directory && paths.has(f.path)) { total += f.size || 0; }
+  });
+  return total;
+}
+
 function sanitizeName(name) {
   if (!name) { return 'arquivo'; }
   let safe = String(name);
@@ -511,7 +514,6 @@ function stripAnimeSeasonAndPart(value) {
 function isGenericAnimeFolder(value) {
   const folded = foldAnimeText(cleanAnimeReleaseName(value));
   if (!folded) { return true; }
-  if (/^(?:19|20)\d{2}$/.test(folded)) { return true; }
   if (/^(?:anime|animes|filmes|movies|downloads?|colecao|collection|minha colecao|nova pasta|series|tv|legendado|dublado|dual audio|batch|completo|complete|episodios?|episodes?|capitulos?|chapters?|ovas?|specials?)$/i.test(folded)) {
     return true;
   }
@@ -551,28 +553,11 @@ function deriveAnimeContext(path) {
   const baseTitle = stripAnimeSeasonAndPart(title).replace(/\s{2,}/g, ' ').trim();
   if (!baseTitle || isGenericAnimeFolder(baseTitle)) { return null; }
 
-  // O ano diferencia remakes homônimos (ex.: Ranma de 1989 e de 2024).
-  const queries = year ? [title + ' ' + year] : [baseTitle];
-  function addQuery(value) {
-    const normalized = foldAnimeText(value);
-    if (value && normalized && !queries.some(function(query) { return foldAnimeText(query) === normalized; })) {
-      queries.push(value);
-    }
-  }
-  addQuery(baseTitle);
-  if (foldAnimeText(title) !== foldAnimeText(baseTitle)) { addQuery(title); }
+  const queries = [baseTitle];
   const simpler = baseTitle.split(/\s+(?:-|:)\s+/)[0].trim();
   if (simpler.length >= 3 && foldAnimeText(simpler) !== foldAnimeText(baseTitle) && !isGenericAnimeFolder(simpler)) {
-    addQuery(simpler);
+    queries.push(simpler);
   }
-  const withoutDescriptor = baseTitle.replace(/\s+(?:the\s+animation|animation|anime|tv\s+series)$/i, '').trim();
-  if (withoutDescriptor.length >= 4 && !isGenericAnimeFolder(withoutDescriptor)) { addQuery(withoutDescriptor); }
-  const spacedCamel = baseTitle.replace(/([a-z])([A-Z])/g, '$1 $2');
-  if (spacedCamel !== baseTitle) { addQuery(spacedCamel); }
-  const compact = baseTitle.replace(/[\s._:\-]+/g, '');
-  if (compact.length >= 5) { addQuery(compact); }
-  // Algumas pastas usam nomes populares com grafia diferente do catálogo.
-  if (foldAnimeText(baseTitle) === 'reikezan') { addQuery('Reikenzan'); }
 
   return {
     title: title,
@@ -613,7 +598,6 @@ function animeTitleSimilarity(a, b) {
   const right = foldAnimeText(b);
   if (!left || !right) { return 0; }
   if (left === right) { return 1; }
-  if (left.replace(/\s/g, '') === right.replace(/\s/g, '')) { return 0.98; }
 
   const leftTokens = Array.from(new Set(left.split(' ').filter(Boolean)));
   const rightTokens = Array.from(new Set(right.split(' ').filter(Boolean)));
@@ -637,20 +621,6 @@ function animeTitleSimilarity(a, b) {
   return Math.min(1, score);
 }
 
-function animeOneEditApart(left, right) {
-  if (Math.abs(left.length - right.length) > 1 || left === right) { return false; }
-  let i = 0;
-  let j = 0;
-  let edits = 0;
-  while (i < left.length && j < right.length) {
-    if (left[i] === right[j]) { i++; j++; continue; }
-    if (++edits > 1) { return false; }
-    if (left.length >= right.length) { i++; }
-    if (right.length >= left.length) { j++; }
-  }
-  return edits + (i < left.length || j < right.length ? 1 : 0) === 1;
-}
-
 function getAnimeAliases(media) {
   const aliases = [];
   if (media && media.title) {
@@ -672,9 +642,6 @@ function scoreAnimeCandidate(media, context, searchIndex) {
   let baseSimilarity = 0;
   let exactFull = false;
   let exactBase = false;
-  let relatedSingleWord = false;
-  let correctedSingleWord = false;
-  const singleBase = context.normalizedBaseTitle.split(' ').filter(Boolean);
   const candidateSeasons = new Set();
   const candidateParts = new Set();
 
@@ -682,14 +649,8 @@ function scoreAnimeCandidate(media, context, searchIndex) {
     const normalized = foldAnimeText(alias);
     fullSimilarity = Math.max(fullSimilarity, animeTitleSimilarity(context.normalizedTitle, normalized));
     baseSimilarity = Math.max(baseSimilarity, animeTitleSimilarity(context.normalizedBaseTitle, normalized));
-    const compact = normalized.replace(/\s/g, '');
-    if (normalized === context.normalizedTitle || compact === context.normalizedTitle.replace(/\s/g, '')) { exactFull = true; }
-    if (normalized === context.normalizedBaseTitle || compact === context.normalizedBaseTitle.replace(/\s/g, '')) { exactBase = true; }
-    if (singleBase.length === 1 && (singleBase[0].length >= 5 || /^\d{2,3}$/.test(singleBase[0]))) {
-      const first = normalized.split(' ')[0];
-      if (first === singleBase[0]) { relatedSingleWord = true; }
-      if (singleBase[0].length >= 7 && animeOneEditApart(singleBase[0], first)) { correctedSingleWord = true; }
-    }
+    if (normalized === context.normalizedTitle) { exactFull = true; }
+    if (normalized === context.normalizedBaseTitle) { exactBase = true; }
     const aliasSeason = extractAnimeSeason(alias);
     const aliasPart = extractAnimePart(alias);
     if (aliasSeason) { candidateSeasons.add(aliasSeason); }
@@ -703,16 +664,11 @@ function scoreAnimeCandidate(media, context, searchIndex) {
   if (context.year && candidateYear && Math.abs(context.year - candidateYear) > 1) { return null; }
 
   const baseTokenCount = context.normalizedBaseTitle.split(' ').filter(Boolean).length;
-  if (baseTokenCount <= 1 && !exactBase && !exactFull && !relatedSingleWord && !correctedSingleWord) { return null; }
+  if (baseTokenCount <= 1 && !exactBase && !exactFull) { return null; }
 
   let score = Math.max(fullSimilarity, baseSimilarity * 0.86);
-  if (relatedSingleWord) { score = Math.max(score, 0.75); }
-  if (correctedSingleWord) { score = Math.max(score, 0.72); }
   if (exactFull) { score = Math.max(score, 1); }
   if (exactBase && !context.season && !context.part) { score = Math.max(score, 0.97); }
-  if (media.format === 'TV') { score += 0.08; }
-  else if (media.format === 'TV_SHORT') { score += 0.07; }
-  else if (media.format === 'OVA') { score -= 0.035; }
 
   if (context.season) {
     if (candidateSeasons.has(context.season)) { score += 0.14; }
@@ -735,20 +691,11 @@ function scoreAnimeCandidate(media, context, searchIndex) {
     media: media,
     score: score,
     exact: exactFull || exactBase,
-    searchIndex: searchIndex,
   };
 }
 
 function selectBestAnimeCandidate(candidates, context) {
-  const seen = new Set();
-  const unique = candidates.filter(function(media) {
-    if (!media) { return false; }
-    const key = media.id || foldAnimeText((media.title && (media.title.romaji || media.title.english)) || '');
-    if (!key || seen.has(key)) { return false; }
-    seen.add(key);
-    return true;
-  });
-  const ranked = unique.map(function(media, index) {
+  const ranked = candidates.map(function(media, index) {
     return scoreAnimeCandidate(media, context, index);
   }).filter(Boolean).sort(function(a, b) {
     return b.score - a.score;
@@ -757,28 +704,7 @@ function selectBestAnimeCandidate(candidates, context) {
   if (!ranked.length || ranked[0].score < ANILIST_MIN_MATCH) { return null; }
   if (ranked.length > 1) {
     const margin = ranked[0].score - ranked[1].score;
-    if (ranked[0].score < ANILIST_STRONG_MATCH && margin < ANILIST_MIN_MARGIN) {
-      // Mesma franquia, várias temporadas/remakes: sem ano/temporada explícitos,
-      // a primeira série de TV é a capa mais previsível para a pasta principal.
-      const top = ranked.slice(0, 4);
-      const franchise = top.map(function(item) {
-        const title = item.media.title && (item.media.title.romaji || item.media.title.english);
-        return foldAnimeText(title).split(' ').slice(0, context.normalizedBaseTitle.split(' ').length === 1 ? 1 : 2).join(' ');
-      });
-      const sameFranchise = franchise[0] && franchise.every(function(value) { return value === franchise[0]; });
-      if (!context.year && !context.season && !context.part && sameFranchise) {
-        const tv = top.filter(function(item) { return item.media.format === 'TV' || item.media.format === 'TV_SHORT'; });
-        if (tv.length) {
-          tv.sort(function(a, b) {
-            const yearA = Number(a.media.seasonYear || (a.media.startDate && a.media.startDate.year)) || 9999;
-            const yearB = Number(b.media.seasonYear || (b.media.startDate && b.media.startDate.year)) || 9999;
-            return yearA - yearB || a.searchIndex - b.searchIndex;
-          });
-          return tv[0];
-        }
-      }
-      return null;
-    }
+    if (ranked[0].score < ANILIST_STRONG_MATCH && margin < ANILIST_MIN_MARGIN) { return null; }
   }
   return ranked[0];
 }
@@ -1027,9 +953,9 @@ function isAbdmAuthStatus(status) {
 
 // ─── Preview de anime (AniList) ────────────────────────────────────────────────
 const ANILIST_FIELDS = 'id title { romaji english native } synonyms seasonYear startDate { year } popularity coverImage { medium large } averageScore episodes format siteUrl';
-const ANILIST_QUERY = 'query ($search: String) { Page(perPage: 15) { media(search: $search, type: ANIME) { ' + ANILIST_FIELDS + ' } } }';
+const ANILIST_QUERY = 'query ($search: String) { Page(perPage: 10) { media(search: $search, type: ANIME) { ' + ANILIST_FIELDS + ' } } }';
 const ANILIST_ID_QUERY = 'query ($id: Int) { Media(id: $id, type: ANIME) { ' + ANILIST_FIELDS + ' } }';
-const persistedAnimeCache = readJsonStorage('anu-anime-cache-v4', []);
+const persistedAnimeCache = readJsonStorage('anu-anime-cache-v2', []);
 if (Array.isArray(persistedAnimeCache)) {
   persistedAnimeCache.slice(-150).forEach(function(entry) {
     if (Array.isArray(entry) && entry[1] && Date.now() - entry[1].createdAt < ANILIST_CACHE_MS) {
@@ -1046,130 +972,57 @@ function getCachedAnilist(key) {
   return item.media;
 }
 
-function scheduleAnimeCacheSave() {
-  if (anilistCacheSaveTimer !== null) { return; }
-  anilistCacheSaveTimer = setTimeout(function() {
-    anilistCacheSaveTimer = null;
-    writeJsonStorage('anu-anime-cache-v4', Array.from(anilistCache));
-  }, 900);
-}
-
 function runAnimeJobs() {
   if (anilistBusy || !anilistJobs.length) { return; }
   anilistBusy = true;
   setTimeout(function() {
-    if (!anilistJobs.length) { anilistBusy = false; return; }
-    const jobs = anilistJobs.splice(0, anilistBatchSize);
-    const batched = jobs.length > 1;
+    const job = anilistJobs.shift();
     let finished = false;
-    function finish(results, failed) {
+    function finish(candidates, cacheable) {
       if (finished) { return; }
       finished = true;
-      const retryJobs = [];
-      let changedCache = false;
-      jobs.forEach(function(job, index) {
-        if (failed && failed[index]) {
-          job.attempts = (job.attempts || 0) + 1;
-          if (job.attempts < 3) { retryJobs.push(job); }
-          else { anilistInflight.delete(job.key); job.resolve([]); }
-          return;
-        }
-        const candidates = results[index] || [];
+      if (cacheable) {
         anilistCache.set(job.key, { createdAt: Date.now(), media: candidates });
         while (anilistCache.size > 150) { anilistCache.delete(anilistCache.keys().next().value); }
-        changedCache = true;
-        anilistInflight.delete(job.key);
-        job.resolve(candidates);
-      });
-      if (retryJobs.length) { anilistJobs.push.apply(anilistJobs, retryJobs); }
-      if (changedCache) { scheduleAnimeCacheSave(); }
+        writeJsonStorage('anu-anime-cache-v2', Array.from(anilistCache));
+      }
+      anilistInflight.delete(job.key);
+      job.resolve(candidates);
       anilistBusy = false;
-      runAnimeJobs();
-    }
-    function retry(delay, shrinkBatch) {
-      if (finished) { return; }
-      finished = true;
-      if (shrinkBatch && batched) { anilistBatchSize = Math.max(1, Math.floor(jobs.length / 2)); }
-      const pending = [];
-      jobs.forEach(function(job) {
-        // Dividir um lote grande não gasta as tentativas de cada título.
-        if (!shrinkBatch || !batched) { job.attempts = (job.attempts || 0) + 1; }
-        if ((job.attempts || 0) < 3) { pending.push(job); }
-        else { anilistInflight.delete(job.key); job.resolve([]); }
-      });
-      anilistJobs.unshift.apply(anilistJobs, pending);
-      anilistBusy = false;
-      anilistNextRequestAt = Math.max(anilistNextRequestAt, Date.now() + delay);
+      anilistNextRequestAt = Math.max(anilistNextRequestAt, Date.now() + 2200);
       runAnimeJobs();
     }
     try {
-      const variables = {};
-      let query = jobs[0].id ? ANILIST_ID_QUERY : ANILIST_QUERY;
-      if (batched) {
-        const declarations = [];
-        const fields = jobs.map(function(job, index) {
-          const alias = 'r' + index;
-          const variable = 'v' + index;
-          variables[variable] = job.id || job.query;
-          declarations.push('$' + variable + ': ' + (job.id ? 'Int' : 'String'));
-          return job.id
-            ? alias + ': Media(id: $' + variable + ', type: ANIME) { ' + ANILIST_FIELDS + ' }'
-            : alias + ': Page(perPage: 15) { media(search: $' + variable + ', type: ANIME) { ' + ANILIST_FIELDS + ' } }';
-        });
-        query = 'query (' + declarations.join(', ') + ') { ' + fields.join(' ') + ' }';
-      } else {
-        variables[jobs[0].id ? 'id' : 'search'] = jobs[0].id || jobs[0].query;
-      }
-      // O intervalo conta do início da chamada, não do fim da resposta.
-      anilistNextRequestAt = Date.now() + 2100;
       GM_xmlhttpRequest({
         method: 'POST', url: ANILIST_API_URL,
         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        data: JSON.stringify({ query: query, variables: variables }),
+        data: JSON.stringify(job.id
+          ? { query: ANILIST_ID_QUERY, variables: { id: job.id } }
+          : { query: ANILIST_QUERY, variables: { search: job.query } }),
         timeout: ANILIST_TIMEOUT_MS,
         onload: function(r) {
           if (r.status === 429) {
-            const retryAfter = String(r.responseHeaders || '').match(/^retry-after:\s*(\d+)/im);
-            retry(retryAfter ? Math.max(2000, Number(retryAfter[1]) * 1000) : 60000, false);
-            return;
+            anilistNextRequestAt = Date.now() + 60000;
+            finish([], false); return;
           }
           try {
             const body = JSON.parse(r.responseText);
-            if (r.status < 200 || r.status >= 300 || !body.data) {
-              retry(r.status >= 500 ? 5000 : 2200, batched); return;
-            }
-            const failed = jobs.map(function(job, index) {
-              const key = batched ? 'r' + index : job.id ? 'Media' : 'Page';
-              return !Object.prototype.hasOwnProperty.call(body.data, key) ||
-                (!!body.errors && body.data[key] === null);
-            });
-            const results = jobs.map(function(job, index) {
-              const value = batched ? body.data['r' + index]
-                : job.id ? body.data.Media : body.data.Page;
-              const candidates = job.id ? (value ? [value] : []) : value && value.media;
-              return Array.isArray(candidates) ? candidates : [];
-            });
-            finish(results, failed);
-          } catch (e) { retry(2200, batched); }
+            if (r.status < 200 || r.status >= 300 || body.errors) { finish([], false); return; }
+            const candidates = job.id ? (body.data && body.data.Media ? [body.data.Media] : [])
+              : body.data && body.data.Page && body.data.Page.media;
+            finish(Array.isArray(candidates) ? candidates : [], true);
+          } catch (e) { finish([], false); }
         },
-        onerror: function() { retry(5000, false); },
-        ontimeout: function() { retry(5000, batched); },
-        onabort: function() { retry(5000, false); },
+        onerror: function() { finish([], false); },
+        ontimeout: function() { finish([], false); },
+        onabort: function() { finish([], false); },
       });
-    } catch (e) { retry(5000, false); }
+    } catch (e) { finish([], false); }
   }, Math.max(0, anilistNextRequestAt - Date.now()));
 }
 
-function cancelQueuedAnimeJobs() {
-  while (anilistJobs.length) {
-    const job = anilistJobs.shift();
-    anilistInflight.delete(job.key);
-    job.resolve([]);
-  }
-}
-
-function fetchAnilistCandidates(query, priority, explicitId) {
-  const idMatch = explicitId && String(query).match(/^(?:https:\/\/anilist\.co\/anime\/)?(\d+)(?:\/.*)?$/);
+function fetchAnilistCandidates(query, priority) {
+  const idMatch = String(query).match(/^(?:https:\/\/anilist\.co\/anime\/)?(\d+)(?:\/.*)?$/);
   const id = idMatch ? Number(idMatch[1]) : null;
   const key = id ? 'id:' + id : foldAnimeText(query);
   const cached = getCachedAnilist(key);
@@ -1193,41 +1046,21 @@ function fetchAnilistCandidates(query, priority, explicitId) {
 function getAnimeOverride(path) {
   let current = path;
   while (current) {
-    if (Object.prototype.hasOwnProperty.call(animeOverrides, current)) {
-      const childYear = current === path ? null : extractAnimeYear(path.slice(current.length));
-      if (childYear && extractAnimeYear(current) !== childYear &&
-          extractAnimeYear(animeOverrides[current]) !== childYear) { return ''; }
-      return animeOverrides[current];
-    }
+    if (Object.prototype.hasOwnProperty.call(animeOverrides, current)) { return animeOverrides[current]; }
     current = current.slice(0, Math.max(0, current.lastIndexOf('/')));
   }
   return '';
 }
 
-function fetchAnilistMedia(path, priority, isActive) {
+function fetchAnilistMedia(path, priority) {
   const override = getAnimeOverride(path);
   const context = deriveAnimeContext(override || path);
   if (!context && !override) { return Promise.resolve(null); }
   const query = override || context.queries[0];
-  const explicitId = !!override && /^(?:https:\/\/anilist\.co\/anime\/)?\d+(?:\/.*)?$/.test(query);
-  return fetchAnilistCandidates(query, priority, explicitId).then(function(candidates) {
-    if (isActive && !isActive()) { return null; }
-    if (explicitId) { return candidates[0] || null; }
+  return fetchAnilistCandidates(query, priority).then(function(candidates) {
+    if (/^(?:https:\/\/anilist\.co\/anime\/)?\d+(?:\/.*)?$/.test(query)) { return candidates[0] || null; }
     const selected = context && selectBestAnimeCandidate(candidates, context);
-    if (selected) { return selected.media; }
-    if (!context) { return null; }
-    const alternatives = context.queries.filter(function(value) {
-      return foldAnimeText(value) !== foldAnimeText(query);
-    }).slice(0, 3);
-    if (!alternatives.length) { return null; }
-    return Promise.all(alternatives.map(function(value) {
-      return fetchAnilistCandidates(value, priority, false);
-    })).then(function(groups) {
-      if (isActive && !isActive()) { return null; }
-      const combined = candidates.concat(...groups);
-      const match = selectBestAnimeCandidate(combined, context);
-      return match ? match.media : null;
-    });
+    return selected ? selected.media : null;
   });
 }
 
@@ -1236,51 +1069,33 @@ function correctAnime(path) {
   if (value === null) { return; }
   if (value.trim()) { animeOverrides[path] = value.trim(); } else { delete animeOverrides[path]; }
   writeJsonStorage('anu-anime-overrides', animeOverrides);
-  folderCoverVersion++;
-  folderCoverCache.clear();
   render();
   updateAnimePreview(currentFolderPath);
 }
 
-function showFolderCover(icon, img) {
-  icon.textContent = '';
-  icon.appendChild(img);
-  icon.style.cssText = 'width:30px;min-width:30px;height:42px;padding:0;background:transparent';
-}
-
-function addFolderCover(icon, file, index) {
+function addFolderCover(icon, file) {
   icon.title = 'Corrigir anime: clique com o botão direito';
   icon.oncontextmenu = function(event) {
     event.preventDefault(); event.stopPropagation(); correctAnime(file.path);
   };
-  const saved = folderCoverCache.get(file.path);
-  if (saved) { showFolderCover(icon, saved); return; }
-  const version = folderCoverVersion;
-  fetchAnilistMedia(file.path, false, function() { return icon.isConnected && version === folderCoverVersion; }).then(function(media) {
-    if (!icon.isConnected || version !== folderCoverVersion || !media || !media.coverImage) { return; }
-    const urls = [media.coverImage.medium, media.coverImage.large].filter(function(url, position, all) {
-      return /^https:\/\//i.test(url || '') && all.indexOf(url) === position;
+  function load() {
+    fetchAnilistMedia(file.path, false).then(function(media) {
+      if (!icon.isConnected || !media || !media.coverImage) { return; }
+      const url = media.coverImage.medium || media.coverImage.large;
+      if (!url || !/^https:\/\//i.test(url)) { return; }
+      const img = document.createElement('img');
+      img.alt = (media.title && (media.title.romaji || media.title.english)) || file.name;
+      img.style.cssText = 'width:30px;height:42px;object-fit:cover;border-radius:5px;display:block';
+      img.onload = function() {
+        if (!icon.isConnected) { return; }
+        icon.textContent = ''; icon.appendChild(img);
+        icon.style.cssText = 'width:30px;min-width:30px;height:42px;padding:0;background:transparent';
+      };
+      img.src = url;
     });
-    if (!urls.length) { return; }
-    const img = document.createElement('img');
-    img.alt = (media.title && (media.title.romaji || media.title.english)) || file.name;
-    img.decoding = 'async';
-    img.loading = 'eager';
-    if (index < 12) { img.fetchPriority = 'high'; }
-    img.style.cssText = 'width:30px;height:42px;object-fit:cover;border-radius:5px;display:block';
-    let urlIndex = 0;
-    img.onload = function() {
-      if (version !== folderCoverVersion) { return; }
-      folderCoverCache.set(file.path, img);
-      while (folderCoverCache.size > 400) { folderCoverCache.delete(folderCoverCache.keys().next().value); }
-      if (icon.isConnected) { showFolderCover(icon, img); }
-    };
-    img.onerror = function() {
-      urlIndex++;
-      if (urlIndex < urls.length) { img.src = urls[urlIndex]; }
-    };
-    img.src = urls[0];
-  });
+  }
+  icon._loadAnimeCover = load;
+  if (folderCoverObserver) { folderCoverObserver.observe(icon); } else { load(); }
 }
 
 
@@ -1288,7 +1103,7 @@ function addFolderCover(icon, file, index) {
 // Paleta premium — gradientes e cores ricas
 const C = {
   bg: '#090b12',
-  bgPanel: '#0f121e',
+  bgPanel: 'rgba(15,18,30,0.94)',
   bgHeader: 'rgba(17,20,34,0.96)',
   bgRow: 'rgba(23,27,43,0.52)',
   bgRowHov: 'rgba(38,44,69,0.68)',
@@ -1334,14 +1149,14 @@ GM_addStyle(
   // Panel
   '#anu-panel{position:fixed;bottom:24px;right:24px;z-index:99999;width:500px;min-width:380px;' +
   'background:' + C.bgPanel + ';color:' + C.text + ';border-radius:16px;' +
-  'box-shadow:0 20px 55px rgba(0,0,0,.5),0 0 0 1px ' + C.border + ';' +
+  'box-shadow:0 28px 80px rgba(0,0,0,.52),0 0 0 1px ' + C.border + ',0 0 0 6px rgba(130,148,255,.018),0 0 52px rgba(99,102,241,.10);' +
+  'backdrop-filter:blur(28px) saturate(1.15);-webkit-backdrop-filter:blur(28px) saturate(1.15);' +
   'font-family:"Inter",system-ui,-apple-system,sans-serif;font-size:13px;' +
   'display:flex;flex-direction:column;max-height:86vh;overflow:hidden;' +
   'opacity:0;transform:translateY(16px) scale(.97);' +
-  'transition:opacity .2s ease,transform .2s ease;}' +
+  'transition:box-shadow .3s ease,opacity .35s cubic-bezier(.4,0,.2,1),transform .35s cubic-bezier(.4,0,.2,1);}' +
   '#anu-panel.anu-mounted{opacity:1;transform:translateY(0) scale(1);}' +
-  '#anu-panel.anu-positioned{transform:none;transition:opacity .2s ease;}' +
-  '#anu-panel.anu-dragging{transition:none!important;}' +
+  '#anu-panel:hover{box-shadow:0 32px 90px rgba(0,0,0,.58),0 0 0 1px ' + C.borderLight + ',0 0 64px rgba(99,102,241,.14);}' +
 
   // Icon wrapper
   '.anu-ic{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;line-height:0;}' +
@@ -1355,7 +1170,7 @@ GM_addStyle(
   'position:relative;overflow:visible;z-index:4;}' +
   '#anu-header::before{content:"";position:absolute;inset:0;' +
   'background:linear-gradient(90deg,transparent,rgba(255,255,255,0.03),transparent);' +
-  'background-size:200% 100%;border-radius:inherit;pointer-events:none;}' +
+  'animation:anu-shimmer 8s ease infinite;background-size:200% 100%;border-radius:inherit;pointer-events:none;}' +
   '#anu-header h3{margin:0;font-size:14px;font-weight:700;flex:1;letter-spacing:.15px;' +
   'display:flex;align-items:center;gap:9px;position:relative;z-index:1;}' +
   '#anu-header h3 .anu-logo-text{background:linear-gradient(135deg,' + C.accent + ',' + C.purple + ');' +
@@ -1370,8 +1185,8 @@ GM_addStyle(
   '#anu-session{display:flex;align-items:center;gap:6px;font-size:11px;padding:5px 12px;' +
   'border-radius:99px;cursor:pointer;position:relative;z-index:1;' +
   'border:1px solid transparent;font-weight:600;letter-spacing:.3px;' +
-  'transition:background-color .18s ease,color .18s ease,transform .18s ease;}' +
-  '#anu-session:hover{transform:translateY(-1px);}' +
+  'transition:all .25s ease;backdrop-filter:blur(8px);}' +
+  '#anu-session:hover{transform:translateY(-1px);filter:brightness(1.1);}' +
   '#anu-session:active{transform:scale(.96);}' +
   '#anu-session.ok{background:' + C.greenDim + ';color:#6ee7b7;border-color:rgba(52,211,153,0.15);}' +
   '#anu-session.ok .anu-ic{color:' + C.green + ';}' +
@@ -1425,13 +1240,13 @@ GM_addStyle(
   '#anu-toolbar button{display:inline-flex;align-items:center;gap:6px;' +
   'padding:6px 14px;border-radius:9px;border:1px solid transparent;cursor:pointer;' +
   'font-family:inherit;font-size:12px;font-weight:600;letter-spacing:.2px;' +
-  'transition:background-color .16s ease,border-color .16s ease,color .16s ease,opacity .16s ease,transform .16s ease;position:relative;overflow:hidden;}' +
+  'transition:all .2s ease;position:relative;overflow:hidden;}' +
   '#anu-toolbar button::before{content:"";position:absolute;inset:0;opacity:0;' +
   'background:linear-gradient(135deg,rgba(255,255,255,0.1),transparent);transition:opacity .2s;}' +
   '#anu-toolbar button:hover:not(:disabled)::before{opacity:1;}' +
-  '#anu-toolbar button:hover:not(:disabled){transform:translateY(-1px);}' +
-  '#anu-toolbar button:active:not(:disabled){transform:scale(.97);}' +
-  '#anu-toolbar button:disabled{opacity:.25;cursor:not-allowed;}' +
+  '#anu-toolbar button:hover:not(:disabled){transform:translateY(-1px);filter:brightness(1.1);}' +
+  '#anu-toolbar button:active:not(:disabled){transform:scale(.97);filter:brightness(.95);}' +
+  '#anu-toolbar button:disabled{opacity:.25;cursor:not-allowed;filter:grayscale(.5);}' +
   '#anu-abdm-ctrl button{display:inline-flex;align-items:center;gap:6px;font-family:inherit;}' +
 
   // Button variants
@@ -1448,7 +1263,7 @@ GM_addStyle(
   'box-shadow:0 2px 12px rgba(251,191,36,0.12);}' +
   '.ay:hover:not(:disabled){box-shadow:0 4px 20px rgba(251,191,36,0.25);}' +
   '.agr{background:rgba(255,255,255,0.04);color:' + C.text + ';' +
-  'border:1px solid ' + C.border + ';}' +
+  'border:1px solid ' + C.border + ';backdrop-filter:blur(4px);}' +
   '.agr:hover:not(:disabled){background:rgba(255,255,255,0.07);border-color:' + C.borderLight + ';}' +
   '.am{background:linear-gradient(135deg,#7c3aed,#a78bfa);color:#fff;border-color:rgba(167,139,250,0.2);' +
   'box-shadow:0 2px 12px rgba(167,139,250,0.15);}' +
@@ -1458,7 +1273,7 @@ GM_addStyle(
   '#anu-abdm-label,#anu-idm-label{display:flex;align-items:center;gap:8px;font-size:12px;' +
   'color:' + C.text + ';cursor:pointer;padding:6px 12px;font-weight:500;' +
   'background:rgba(255,255,255,0.03);border-radius:9px;border:1px solid ' + C.border + ';' +
-  'white-space:nowrap;transition:background-color .16s ease,border-color .16s ease,color .16s ease;}' +
+  'white-space:nowrap;transition:all .2s ease;backdrop-filter:blur(4px);}' +
   '#anu-abdm-label:hover,#anu-idm-label:hover{border-color:' + C.borderLight + ';background:rgba(255,255,255,0.06);}' +
   '#anu-abdm-label:has(input:checked),#anu-idm-label:has(input:checked){' +
   'background:' + C.accentDim + ';border-color:rgba(108,140,255,0.3);color:' + C.accentLight + ';}' +
@@ -1483,7 +1298,7 @@ GM_addStyle(
   'display:flex;align-items:center;gap:5px;}' +
   '#anu-filter input{flex:1;background:' + C.bgInput + ';border:1px solid ' + C.border + ';' +
   'color:' + C.text + ';border-radius:8px;padding:6px 12px;font-size:12px;font-family:inherit;outline:none;' +
-  'transition:border-color .16s ease,box-shadow .16s ease;}' +
+  'transition:all .2s ease;backdrop-filter:blur(4px);}' +
   '#anu-filter input:focus{border-color:' + C.accent + ';box-shadow:0 0 0 3px ' + C.accentDim + ';}' +
   '#anu-filter input::placeholder{color:' + C.textDim + ';}' +
 
@@ -1562,7 +1377,7 @@ GM_addStyle(
   'border-radius:0 2px 2px 0;}' +
   '#anu-fill::after{content:"";position:absolute;inset:0;' +
   'background:linear-gradient(90deg,transparent,rgba(255,255,255,0.3),transparent);' +
-  'background-size:200% 100%;}' +
+  'animation:anu-shimmer 2s ease infinite;background-size:200% 100%;}' +
   '#anu-fill.anu-done{background:linear-gradient(90deg,' + C.green + ',' + C.green + ');}' +
 
   // File list
@@ -1575,18 +1390,17 @@ GM_addStyle(
   // File row
   '.anu-row{display:flex;align-items:center;gap:10px;padding:7px 16px;' +
   'border-bottom:1px solid ' + C.borderSub + ';cursor:pointer;border-left:2px solid transparent;' +
-  'transition:background-color .12s ease,border-color .12s ease;animation:anu-fadeIn .2s ease both;' +
-  'content-visibility:auto;contain-intrinsic-size:60px;}' +
+  'transition:all .15s ease;animation:anu-fadeIn .3s ease both;}' +
   '.anu-row:hover{background:' + C.bgRowHov + ';}' +
-  '.anu-row.anu-selected{background:rgba(108,140,255,0.05);' +
+  '.anu-row:has(input[type=checkbox]:checked){background:rgba(108,140,255,0.05);' +
   'border-left-color:' + C.accent + ';}' +
-  '.anu-row.anu-selected:hover{background:rgba(108,140,255,0.09);}' +
+  '.anu-row:has(input[type=checkbox]:checked):hover{background:rgba(108,140,255,0.09);}' +
   '.anu-row input[type=checkbox]{flex-shrink:0;accent-color:' + C.accent + ';cursor:pointer;' +
   'width:15px;height:15px;border-radius:4px;}' +
 
   // File icon
   '.anu-ficon{display:flex;align-items:center;justify-content:center;flex-shrink:0;' +
-  'width:28px;height:28px;border-radius:7px;transition:transform .12s ease;}' +
+  'width:28px;height:28px;border-radius:7px;transition:all .15s ease;}' +
   '.anu-ficon svg{width:15px;height:15px;}' +
   '.anu-ficon-folder{background:rgba(108,140,255,0.1);color:' + C.accent + ';border:1px solid rgba(108,140,255,0.12);}' +
   '.anu-ficon-video{background:rgba(167,139,250,0.1);color:' + C.purple + ';border:1px solid rgba(167,139,250,0.12);}' +
@@ -1607,12 +1421,13 @@ GM_addStyle(
   // Badges — glass effect
   '.anu-bx{font-size:10px;padding:3px 9px;border-radius:99px;white-space:nowrap;' +
   'flex-shrink:0;font-weight:600;letter-spacing:.3px;' +
-  'border:1px solid transparent;}' +
+  'backdrop-filter:blur(4px);border:1px solid transparent;' +
+  'animation:anu-badgePop .25s ease both;}' +
   '.bp{background:' + C.accentDim + ';color:#93c5fd;border-color:rgba(108,140,255,0.1);}' +
   '.bd{background:' + C.greenDim + ';color:#6ee7b7;border-color:rgba(52,211,153,0.15);}' +
   '.be{background:' + C.redDim + ';color:#fca5a5;border-color:rgba(248,113,113,0.15);}' +
   '.ba{background:' + C.amberDim + ';color:#fde68a;border-color:rgba(251,191,36,0.15);' +
-  'animation:anu-pulse 2s ease infinite;}' +
+  'animation:anu-badgePop .25s ease both,anu-pulse 2s ease infinite;}' +
   '.bf{background:rgba(255,255,255,0.03);color:' + C.textMid + ';border-color:' + C.border + ';}' +
 
   // Single download button
@@ -1671,7 +1486,7 @@ GM_addStyle(
   '#anu-list{background:linear-gradient(180deg,rgba(255,255,255,.012),transparent 28%);}' +
   '.anu-row{min-height:45px;padding:8px 18px;border-left-width:3px;}' +
   '.anu-row:hover{box-shadow:inset 0 1px 0 rgba(255,255,255,.025),inset 0 -1px 0 rgba(255,255,255,.02);}' +
-  '.anu-row.anu-selected{box-shadow:inset 0 1px 0 rgba(174,186,255,.08),0 0 20px rgba(99,102,241,.035);}' +
+  '.anu-row:has(input[type=checkbox]:checked){box-shadow:inset 0 1px 0 rgba(174,186,255,.08),0 0 20px rgba(99,102,241,.035);}' +
   '.anu-ficon{width:30px;height:30px;border-radius:9px;}' +
   '.anu-fn{font-weight:550;letter-spacing:.05px;}' +
   '.anu-fs{padding:3px 8px;background:rgba(255,255,255,.045);}' +
@@ -1989,12 +1804,6 @@ function G(id) { return document.getElementById(id); }
 const listEl = G('anu-list');
 const logEl = G('anu-log');
 const extEl = G('anu-ext');
-const rowByPath = new Map();
-const checkboxByPath = new Map();
-const statNodes = {
-  files: G('st'), selected: G('ss'), done: G('sd'), sent: G('se'),
-  failed: G('sf'), size: G('sz'), fill: G('anu-fill'),
-};
 extEl.value = localStorage.getItem(EXT_FILTER_KEY) || '';
 
 function log(msg, cls) {
@@ -2144,35 +1953,27 @@ function passes(name) {
 }
 
 function updateStats() {
-  let files = 0, done = 0, sent = 0, fail = 0, selectedBytes = 0;
-  let allProgressDone = 0, activeFiles = 0, activeProgressDone = 0;
-  const hasDownloadScope = activeDownloadPaths.size > 0;
-  fileList.forEach(function(f) {
-    if (f.is_directory) { return; }
-    files++;
-    const isSelected = selected.has(f.path);
-    const complete = f.status === 'done' || f.status === 'error' ||
-      f.status === 'sent_abdm' || f.status === 'sent_idm';
-    if (f.status === 'done') { done++; }
-    if (f.status === 'error') { fail++; }
-    if (f.status === 'sent_abdm' || f.status === 'sent_idm') { sent++; }
-    if (isSelected) { selectedBytes += f.size || 0; }
-    if (complete) { allProgressDone++; }
-    if (hasDownloadScope ? activeDownloadPaths.has(f.path) : isSelected || f.status !== 'pending') {
-      activeFiles++;
-      if (complete) { activeProgressDone++; }
-    }
-  });
-  statNodes.files.textContent = files;
-  statNodes.selected.textContent = selected.size;
-  statNodes.done.textContent = done;
-  statNodes.sent.textContent = sent;
-  statNodes.failed.textContent = fail;
-  statNodes.size.textContent = selected.size > 0 ? fmt(selectedBytes) : '—';
-  const progressCount = activeFiles || files;
-  const pct = progressCount ? Math.round((activeFiles ? activeProgressDone : allProgressDone) / progressCount * 100) : 0;
+  const files = fileList.filter(function(f) { return !f.is_directory; });
+  const activeFiles = activeDownloadPaths.size
+    ? files.filter(function(f) { return activeDownloadPaths.has(f.path); })
+    : files.filter(function(f) {
+      return selected.has(f.path) || f.status !== 'pending';
+    });
+  const progressFiles = activeFiles.length ? activeFiles : files;
+  const done = files.filter(function(f) { return f.status === 'done'; }).length;
+  const fail = files.filter(function(f) { return f.status === 'error'; }).length;
+  const progressDone = progressFiles.filter(function(f) {
+    return f.status === 'done' || f.status === 'error' || f.status === 'sent_abdm' || f.status === 'sent_idm';
+  }).length;
+  G('st').textContent = files.length;
+  G('ss').textContent = selected.size;
+  G('sd').textContent = done;
+  G('se').textContent = files.filter(function(f) { return f.status === 'sent_abdm' || f.status === 'sent_idm'; }).length;
+  G('sf').textContent = fail;
+  G('sz').textContent = selected.size > 0 ? fmt(totalSize(selected)) : '—';
+  const pct = progressFiles.length ? Math.round(progressDone / progressFiles.length * 100) : 0;
   const busy = downloading || abdmSending || crawling || folderLoading;
-  const fillEl = statNodes.fill;
+  const fillEl = G('anu-fill');
   fillEl.style.width = pct + '%';
   // Green when complete
   if (pct >= 100 && !busy) {
@@ -2267,20 +2068,17 @@ setInterval(function() {
   }
 }, SESSION_AUTO_CHECK_MS);
 
-function syncSelectionUI() {
-  checkboxByPath.forEach(function(chk, path) {
-    const checked = selected.has(path);
-    if (chk.checked === checked) { return; }
-    chk.checked = checked;
-    chk.parentElement.classList.toggle('anu-selected', checked);
-  });
-  updateStats();
-}
-
 function render() {
+  if (folderCoverObserver) { folderCoverObserver.disconnect(); }
+  folderCoverObserver = typeof IntersectionObserver === 'function' ? new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
+      if (entry.isIntersecting) {
+        folderCoverObserver.unobserve(entry.target);
+        if (entry.target._loadAnimeCover) { entry.target._loadAnimeCover(); }
+      }
+    });
+  }, { root: listEl, rootMargin: '100px' }) : null;
   ignoreObserver = true;
-  rowByPath.clear();
-  checkboxByPath.clear();
   if (!fileList.length) {
     listEl.innerHTML = '<div class="anu-empty"><span class="anu-empty-icon anu-ic">' + ICON.emptyBox + '</span>Nenhum arquivo encontrado.</div>';
     updateStats();
@@ -2294,15 +2092,13 @@ function render() {
     const row = document.createElement('div');
     row.className = 'anu-row';
     row.dataset.path = f.path;
-    rowByPath.set(f.path, row);
-    // Listas grandes entram prontas, sem centenas de animações simultâneas.
-    if (fileList.length > 50) { row.style.animation = 'none'; }
-    else { row.style.animationDelay = Math.min(index * 6, 90) + 'ms'; }
+    // Stagger animation
+    row.style.animationDelay = Math.min(index * 15, 300) + 'ms';
     if (f.is_directory) {
       const iconWrap = document.createElement('span');
       iconWrap.className = 'anu-ficon anu-ficon-folder';
       iconWrap.innerHTML = ICON.folder;
-      addFolderCover(iconWrap, f, index);
+      addFolderCover(iconWrap, f);
       const name = document.createElement('span');
       name.className = 'anu-fn';
       name.style.color = C.accent;
@@ -2326,30 +2122,24 @@ function render() {
       const chk = document.createElement('input');
       chk.type = 'checkbox';
       chk.checked = selected.has(f.path);
-      row.classList.toggle('anu-selected', chk.checked);
-      checkboxByPath.set(f.path, chk);
       chk.dataset.index = index;
-      let checkboxShift = false;
-      chk.onclick = function(event) { checkboxShift = event.shiftKey; };
       chk.onchange = function(e) {
         const ci = parseInt(chk.dataset.index, 10);
-        const shift = e.shiftKey || checkboxShift;
-        checkboxShift = false;
-        if (shift && lastCheckedIndex !== null && lastCheckedIndex !== ci) {
+        if (e.shiftKey && lastCheckedIndex !== null && lastCheckedIndex !== ci) {
           const start = Math.min(lastCheckedIndex, ci);
           const end = Math.max(lastCheckedIndex, ci);
+          const allChk = listEl.querySelectorAll('input[type=checkbox]');
           for (let i = start; i <= end; i++) {
-            const f2 = fileList[i];
-            if (!f2 || f2.is_directory) { continue; }
-            const cb = checkboxByPath.get(f2.path);
+            const cb = allChk[i];
             if (!cb) { continue; }
             cb.checked = chk.checked;
-            cb.parentElement.classList.toggle('anu-selected', chk.checked);
-            if (chk.checked) { selected.add(f2.path); } else { selected.delete(f2.path); }
+            const f2 = fileList[parseInt(cb.dataset.index, 10)];
+            if (f2) {
+              if (chk.checked) { selected.add(f2.path); } else { selected.delete(f2.path); }
+            }
           }
         } else {
           if (chk.checked) { selected.add(f.path); } else { selected.delete(f.path); }
-          row.classList.toggle('anu-selected', chk.checked);
         }
         lastCheckedIndex = ci;
         updateStats();
@@ -2401,10 +2191,13 @@ function render() {
 
 function refreshBadge(item) {
   ignoreObserver = true;
-  const row = rowByPath.get(item.path);
-  if (row && row.isConnected) {
-    const b = row.querySelector('.anu-bx:not(.bf)');
-    if (b) { b.outerHTML = mkBadge(item.status); }
+  const rows = listEl.querySelectorAll('.anu-row');
+  for (let i = 0; i < rows.length; i++) {
+    if (rows[i].dataset.path === item.path) {
+      const b = rows[i].querySelector('.anu-bx:not(.bf)');
+      if (b) { b.outerHTML = mkBadge(item.status); }
+      break;
+    }
   }
   ignoreObserver = false;
 }
@@ -2450,8 +2243,6 @@ function clickFolderInSite(name) {
 
 function renderSkeleton() {
   ignoreObserver = true;
-  rowByPath.clear();
-  checkboxByPath.clear();
   const rows = [90, 70, 85, 60, 78];
   listEl.innerHTML = rows.map(function(w) {
     return '<div class="anu-skel-row">' +
@@ -2476,7 +2267,7 @@ function updateAnimePreview(path) {
   hideAnimePreview();
   const anilistId = ++activeAnilistId;
   if (!path) { hideAnimePreview(); return; }
-  fetchAnilistMedia(path, true, function() { return anilistId === activeAnilistId; }).then(function(media) {
+  fetchAnilistMedia(path, true).then(function(media) {
     if (anilistId !== activeAnilistId) { return; } // pasta mudou nesse meio-tempo
     if (!media) { hideAnimePreview(); return; }
     const title = (media.title && (media.title.english || media.title.romaji || media.title.native)) || path;
@@ -2509,7 +2300,6 @@ function loadFolder(path) {
   const cached = getCachedApi(path);
   function commit(data) {
     if (loadId !== activeLoadId) { return; }
-    if (currentFolderPath !== path) { cancelQueuedAnimeJobs(); }
     const view = folderViews.get(path);
     const previous = new Map(view ? view.files.map(function(f) { return [f.path, f]; }) : []);
     fileList = (data.files || []).map(function(f) {
@@ -2682,16 +2472,16 @@ G('b-all').onclick = function() {
   fileList.forEach(function(f) {
     if (!f.is_directory && passes(f.name)) { selected.add(f.path); }
   });
-  syncSelectionUI();
+  render();
 };
-G('b-none').onclick = function() { selected.clear(); syncSelectionUI(); };
+G('b-none').onclick = function() { selected.clear(); render(); };
 extEl.addEventListener('input', debounce(function() {
   try { localStorage.setItem(EXT_FILTER_KEY, extEl.value); } catch (e) {}
   selected.clear();
   fileList.forEach(function(f) {
     if (!f.is_directory && passes(f.name)) { selected.add(f.path); }
   });
-  syncSelectionUI();
+  render();
 }, 180));
 
 G('b-stop').onclick = function() {
@@ -3158,12 +2948,8 @@ G('b-abdm-stop').onclick = function() {
 function startDownloads(items) {
   if (!items.length || downloading || abdmSending || crawling || folderLoading) { return; }
   activeDownloadPaths = new Set(items.map(function(f) { return f.path; }));
-  items.forEach(function(f) {
-    const changed = f.status !== 'pending';
-    f.status = 'pending'; f.retries = 0;
-    if (changed) { refreshBadge(f); }
-  });
-  updateStats();
+  items.forEach(function(f) { f.status = 'pending'; f.retries = 0; });
+  render();
   if (G('anu-abdm').checked) { sendToABDM(items); }
   else if (G('anu-idm').checked) { sendToIDM(items); }
   else { runQueue(items); }
@@ -3182,28 +2968,21 @@ G('b-retry').onclick = function() {
 let minimised = false;
 
 function keepPanelInViewport() {
-  const maxLeft = Math.max(0, window.innerWidth - panel.offsetWidth);
-  const maxTop = Math.max(0, window.innerHeight - panel.offsetHeight);
+  const r = panel.getBoundingClientRect();
   if (panel.style.left) {
-    const left = parseFloat(panel.style.left);
-    const nextLeft = clamp(left, 0, maxLeft);
-    if (Number.isFinite(left) && nextLeft !== left) { panel.style.left = nextLeft + 'px'; }
+    panel.style.left = clamp(r.left, 0, Math.max(0, window.innerWidth - r.width)) + 'px';
   }
   if (panel.style.top) {
-    const top = parseFloat(panel.style.top);
-    const nextTop = clamp(top, 0, maxTop);
-    if (Number.isFinite(top) && nextTop !== top) { panel.style.top = nextTop + 'px'; }
+    panel.style.top = clamp(r.top, 0, Math.max(0, window.innerHeight - r.height)) + 'px';
   }
 }
 
 function savePanelState() {
   const r = panel.getBoundingClientRect();
-  const left = parseFloat(panel.style.left);
-  const top = parseFloat(panel.style.top);
   writeJsonStorage(PANEL_STATE_KEY, {
-    left: Math.round(Number.isFinite(left) ? left : r.left),
-    top: Math.round(Number.isFinite(top) ? top : r.top),
-    width: panel.offsetWidth,
+    left: Math.round(r.left),
+    top: Math.round(r.top),
+    width: Math.round(r.width),
     minimised: minimised,
   });
 }
@@ -3263,60 +3042,27 @@ consoleToggleBtn.onclick = function() {
 
 setConsoleHidden(localStorage.getItem(CONSOLE_HIDDEN_KEY) === '1', false);
 
-let drag = false, dragStarted = false, pressX = 0, pressY = 0;
-let dragOriginLeft = 0, dragOriginTop = 0, dragLeft = 0, dragTop = 0;
-let dragMaxLeft = 0, dragMaxTop = 0, dragFrame = 0;
+let drag = false, ox = 0, oy = 0;
 G('anu-header').addEventListener('mousedown', function(e) {
   if (e.target.closest && e.target.closest('button,input,select,label')) { return; }
-  e.preventDefault();
   drag = true;
-  dragStarted = false;
-  pressX = e.clientX; pressY = e.clientY;
   const r = panel.getBoundingClientRect();
-  dragOriginLeft = dragLeft = r.left;
-  dragOriginTop = dragTop = r.top;
-  dragMaxLeft = Math.max(0, window.innerWidth - panel.offsetWidth);
-  dragMaxTop = Math.max(0, window.innerHeight - panel.offsetHeight);
+  ox = e.clientX - r.left; oy = e.clientY - r.top;
 });
 document.addEventListener('mousemove', function(e) {
   if (!drag) { return; }
-  const dx = e.clientX - pressX;
-  const dy = e.clientY - pressY;
-  if (!dragStarted) {
-    if (dx * dx + dy * dy < 25) { return; }
-    dragStarted = true;
-    panel.classList.add('anu-positioned', 'anu-dragging');
-    panel.style.right = 'auto'; panel.style.bottom = 'auto';
-    panel.style.left = Math.round(dragOriginLeft) + 'px';
-    panel.style.top = Math.round(dragOriginTop) + 'px';
-  }
-  dragLeft = clamp(dragOriginLeft + dx, 0, dragMaxLeft);
-  dragTop = clamp(dragOriginTop + dy, 0, dragMaxTop);
-  if (dragFrame) { return; }
-  dragFrame = requestAnimationFrame(function() {
-    dragFrame = 0;
-    panel.style.left = Math.round(dragLeft) + 'px';
-    panel.style.top = Math.round(dragTop) + 'px';
-  });
+  const r = panel.getBoundingClientRect();
+  const maxLeft = Math.max(0, window.innerWidth - r.width);
+  const maxTop = Math.max(0, window.innerHeight - r.height);
+  panel.style.right = 'auto'; panel.style.bottom = 'auto';
+  panel.style.left = clamp(e.clientX - ox, 0, maxLeft) + 'px';
+  panel.style.top = clamp(e.clientY - oy, 0, maxTop) + 'px';
 });
-function finishPanelDrag(e) {
+document.addEventListener('mouseup', function() {
   if (!drag) { return; }
   drag = false;
-  if (!dragStarted) { return; }
-  dragStarted = false;
-  if (e && e.type === 'mouseup') {
-    dragLeft = clamp(dragOriginLeft + e.clientX - pressX, 0, dragMaxLeft);
-    dragTop = clamp(dragOriginTop + e.clientY - pressY, 0, dragMaxTop);
-  }
-  if (dragFrame) { cancelAnimationFrame(dragFrame); dragFrame = 0; }
-  panel.style.left = Math.round(dragLeft) + 'px';
-  panel.style.top = Math.round(dragTop) + 'px';
-  panel.style.transform = '';
-  panel.classList.remove('anu-dragging');
   savePanelState();
-}
-document.addEventListener('mouseup', finishPanelDrag);
-window.addEventListener('blur', finishPanelDrag);
+});
 window.addEventListener('resize', debounce(function() {
   keepPanelInViewport();
   savePanelState();
@@ -3324,7 +3070,6 @@ window.addEventListener('resize', debounce(function() {
 restorePanelState();
 if (typeof ResizeObserver !== 'undefined') {
   new ResizeObserver(debounce(function() {
-    if (drag) { return; }
     keepPanelInViewport();
     savePanelState();
   }, 250)).observe(panel);

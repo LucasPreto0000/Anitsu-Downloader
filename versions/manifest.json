@@ -1,0 +1,154 @@
+{
+  "recommended": "1.6.8",
+  "publishedAt": "2026-10-02",
+  "description": "Arquivos históricos preservados byte a byte. publishedAt é a data desta publicação do acervo, não a data original de lançamento.",
+  "entries": [
+    {
+      "version": "1.5.0",
+      "variant": "original",
+      "file": "versions/1.5.0/Anitsu-1.5.0-original.user.js",
+      "sha256": "c186ead3646d48be5791512f4f4c955b365c6051fac23e526b6c1e03801cf461",
+      "sourceName": "Anitsu Downloader150.js"
+    },
+    {
+      "version": "1.5.0",
+      "variant": "original-lf",
+      "file": "versions/1.5.0/Anitsu-1.5.0-original-lf.user.js",
+      "sha256": "26a41a31d20b32cf28ebccdd0a41d2a39fcfc5228aee9883910bb0b3c8ba08c6",
+      "sourceName": "Anitsu Downloader.user-first-version.js"
+    },
+    {
+      "version": "1.5.1",
+      "variant": "abdm-legado",
+      "file": "versions/1.5.1/Anitsu-1.5.1-abdm-legado.user.js",
+      "sha256": "33463dd328dcae534ac798c80ce50b779c3a71d05acffc30e8eba4d4257be71c",
+      "sourceName": "Anitsu Downloader 1.5.1.js"
+    },
+    {
+      "version": "1.5.1",
+      "variant": "sessao",
+      "file": "versions/1.5.1/Anitsu-1.5.1-sessao.user.js",
+      "sha256": "62aa7ae8b2a2e7137e8687079d961b52c5b28eff2d78f809a2c5e707e4dc946a",
+      "sourceName": "Anitsu Downloader 1.5.1.js"
+    },
+    {
+      "version": "1.5.2",
+      "variant": "abdm-legado",
+      "file": "versions/1.5.2/Anitsu-1.5.2-abdm-legado.user.js",
+      "sha256": "458cf13bc8392777f42f9ed8ccb0f7af7716d2e79974282dbb614d9461ac8f3b",
+      "sourceName": "Anitsu Downloader 1.5.2.js"
+    },
+    {
+      "version": "1.5.2",
+      "variant": "sessao",
+      "file": "versions/1.5.2/Anitsu-1.5.2-sessao.user.js",
+      "sha256": "e15583724a785144413b5f4caaad6ad41ba7da787f8a3a2e91e09a1f54085cd2",
+      "sourceName": "Anitsu Downloader 1.5.2.js"
+    },
+    {
+      "version": "1.5.3",
+      "variant": "principal",
+      "file": "versions/1.5.3/Anitsu-1.5.3.user.js",
+      "sha256": "08c13507e0386ec1dc6e2ed1318f68aa39575e37dd3b5ac0c3266840571b76b9",
+      "sourceName": "Anitsu Downloader 1.5.3.js"
+    },
+    {
+      "version": "1.5.4",
+      "variant": "principal",
+      "file": "versions/1.5.4/Anitsu-1.5.4.user.js",
+      "sha256": "bd60e6d884caf0a79d7883c7fe0593087013e1a4956523ab89c28de28c96a5c8",
+      "sourceName": "Anitsu 1.5.4.user.js"
+    },
+    {
+      "version": "1.5.5",
+      "variant": "principal",
+      "file": "versions/1.5.5/Anitsu-1.5.5.user.js",
+      "sha256": "2c69b1107d2cd1ea22124faac1fb20b1d3713ae082a64898ed337c7bfad89f67",
+      "sourceName": "Anitsu 1.5.5.user.js"
+    },
+    {
+      "version": "1.6.0",
+      "variant": "detector-legado",
+      "file": "versions/1.6.0/Anitsu-1.6.0-detector-legado.user.js",
+      "sha256": "4eb112cd31ed680b0a510a443797b6df784522a0ccdb3a8a15e5a86a59c5b8ed",
+      "sourceName": "Anitsu Downloader 1.6.0.js"
+    },
+    {
+      "version": "1.6.0",
+      "variant": "principal",
+      "file": "versions/1.6.0/Anitsu-1.6.0.user.js",
+      "sha256": "866510a39d26463c5dca72d379b000446b4d6d270e8fc43ffc6fd03a21b04ca4",
+      "sourceName": "Anitsu 1.6.0.user.js"
+    },
+    {
+      "version": "1.6.1",
+      "variant": "principal",
+      "file": "versions/1.6.1/Anitsu-1.6.1.user.js",
+      "sha256": "057a5d68a7315b9097a89bb162ea6680e999bfdb8c8fff3a39354cba302bb9f1",
+      "sourceName": "Anitsu 1.6.1.user.js"
+    },
+    {
+      "version": "1.6.2",
+      "variant": "principal",
+      "file": "versions/1.6.2/Anitsu-1.6.2.user.js",
+      "sha256": "74fc09312bd90b4cd009f48dea7af35f1aaa536520d6d885fe505a8ce4e1209f",
+      "sourceName": "Anitsu 1.6.2.user.js"
+    },
+    {
+      "version": "1.6.3",
+      "variant": "principal",
+      "file": "versions/1.6.3/Anitsu-1.6.3.user.js",
+      "sha256": "264d77b4da8fdda544cfbf6200a263c0725090b8111e70047563475f1ccfdbcb",
+      "sourceName": "Anitsu 1.6.3.user.js"
+    },
+    {
+      "version": "1.6.4",
+      "variant": "principal",
+      "file": "versions/1.6.4/Anitsu-1.6.4.user.js",
+      "sha256": "c1dec3243829524abd60fb878bb3cecc526a25bec061bf63b8996a0590068dd8",
+      "sourceName": "Anitsu 1.6.4.user.js"
+    },
+    {
+      "version": "1.6.5",
+      "variant": "principal",
+      "file": "versions/1.6.5/Anitsu-1.6.5.user.js",
+      "sha256": "7c47125385bf3662108fb6cc56b0436f35e01fae8f79b0fe5c6fd14b74cff99f",
+      "sourceName": "Anitsu 1.6.5.user.js"
+    },
+    {
+      "version": "1.6.6",
+      "variant": "principal",
+      "file": "versions/1.6.6/Anitsu-1.6.6.user.js",
+      "sha256": "e4dacd6361c6e91475f3bfb7764e6b8c8ce3834f00460daa1694f26eb779813b",
+      "sourceName": "Anitsu 1.6.6.user.js"
+    },
+    {
+      "version": "1.6.7",
+      "variant": "principal",
+      "file": "versions/1.6.7/Anitsu-1.6.7.user.js",
+      "sha256": "8e208cd589ca538082db7cd03a2f9eea71813559ebb0b562a0dd5cc85775b7e4",
+      "sourceName": "Anitsu 1.6.7.user.js"
+    },
+    {
+      "version": "1.6.8",
+      "variant": "principal",
+      "file": "versions/1.6.8/Anitsu-1.6.8.user.js",
+      "sha256": "d1b3fdc6c740d0f2f9f7b3859a88c2f0873fa05c38cf3c1dd0522e5188acd288",
+      "sourceName": "Anitsu 1.6.8.user.js"
+    },
+    {
+      "version": "2.0.0",
+      "variant": "principal",
+      "file": "versions/2.0.0/Anitsu-2.0.0.user.js",
+      "sha256": "65027c5d181b2b6db342fbf456d3935f970aba5db1e21d8f49dc2506f3a2fe38",
+      "sourceName": "Anitsu Downloader 2.0.0.js"
+    },
+    {
+      "version": "2.0.1",
+      "variant": "principal",
+      "file": "versions/2.0.1/Anitsu-2.0.1.user.js",
+      "sha256": "554b7430064261dacc68780c3bfd6d84563693fa8e9d838347019517f9635982",
+      "sourceName": "Anitsu Downloader 2.0.1.js"
+    }
+  ]
+}

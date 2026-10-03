@@ -2,7 +2,7 @@
 // @name         Anitsu Downloader1
 // @name:pt-BR   Anitsu Downloader1
 // @namespace    https://nuvem.anitsu.moe/
-// @version      1.6.8
+// @version      1.6.3
 // @description  Download em massa para o Anitsu Cloud (nuvem.anitsu.moe). Painel flutuante com seleção de arquivos, download direto ou via AB Download Manager, renovação automática de sessão, modo recursivo para baixar pastas inteiras e preview automático da capa do anime (via AniList).
 // @description:pt-BR  Download em massa para o Anitsu Cloud (nuvem.anitsu.moe). Painel flutuante com seleção de arquivos, download direto ou via AB Download Manager, renovação automática de sessão, modo recursivo para baixar pastas inteiras e preview automático da capa do anime (via AniList).
 // @author       TheCyBee & Saitama
@@ -18,8 +18,8 @@
 // @run-at       document-idle
 // @license      MIT
 // @icon         https://nuvem.anitsu.moe/favicon.ico
-// @downloadURL https://raw.githubusercontent.com/LucasPreto0000/Anitsu-Downloader/main/Anitsu-Downloader.user.js
-// @updateURL https://raw.githubusercontent.com/LucasPreto0000/Anitsu-Downloader/main/Anitsu-Downloader.user.js
+// @downloadURL https://update.greasyfork.org/scripts/578627/Anitsu%20Downloader.user.js
+// @updateURL https://update.greasyfork.org/scripts/578627/Anitsu%20Downloader.meta.js
 // ==/UserScript==
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -334,6 +334,14 @@ function fmt(bytes) {
   if (bytes > 1e6) { return (bytes / 1e6).toFixed(1) + ' MB'; }
   if (bytes > 1e3) { return (bytes / 1e3).toFixed(0) + ' KB'; }
   return bytes + ' B';
+}
+
+function totalSize(paths) {
+  let total = 0;
+  fileList.forEach(function(f) {
+    if (!f.is_directory && paths.has(f.path)) { total += f.size || 0; }
+  });
+  return total;
 }
 
 function sanitizeName(name) {
@@ -1288,7 +1296,7 @@ function addFolderCover(icon, file, index) {
 // Paleta premium — gradientes e cores ricas
 const C = {
   bg: '#090b12',
-  bgPanel: '#0f121e',
+  bgPanel: 'rgba(15,18,30,0.94)',
   bgHeader: 'rgba(17,20,34,0.96)',
   bgRow: 'rgba(23,27,43,0.52)',
   bgRowHov: 'rgba(38,44,69,0.68)',
@@ -1334,14 +1342,14 @@ GM_addStyle(
   // Panel
   '#anu-panel{position:fixed;bottom:24px;right:24px;z-index:99999;width:500px;min-width:380px;' +
   'background:' + C.bgPanel + ';color:' + C.text + ';border-radius:16px;' +
-  'box-shadow:0 20px 55px rgba(0,0,0,.5),0 0 0 1px ' + C.border + ';' +
+  'box-shadow:0 28px 80px rgba(0,0,0,.52),0 0 0 1px ' + C.border + ',0 0 0 6px rgba(130,148,255,.018),0 0 52px rgba(99,102,241,.10);' +
+  'backdrop-filter:blur(28px) saturate(1.15);-webkit-backdrop-filter:blur(28px) saturate(1.15);' +
   'font-family:"Inter",system-ui,-apple-system,sans-serif;font-size:13px;' +
   'display:flex;flex-direction:column;max-height:86vh;overflow:hidden;' +
   'opacity:0;transform:translateY(16px) scale(.97);' +
-  'transition:opacity .2s ease,transform .2s ease;}' +
+  'transition:box-shadow .3s ease,opacity .35s cubic-bezier(.4,0,.2,1),transform .35s cubic-bezier(.4,0,.2,1);}' +
   '#anu-panel.anu-mounted{opacity:1;transform:translateY(0) scale(1);}' +
-  '#anu-panel.anu-positioned{transform:none;transition:opacity .2s ease;}' +
-  '#anu-panel.anu-dragging{transition:none!important;}' +
+  '#anu-panel:hover{box-shadow:0 32px 90px rgba(0,0,0,.58),0 0 0 1px ' + C.borderLight + ',0 0 64px rgba(99,102,241,.14);}' +
 
   // Icon wrapper
   '.anu-ic{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;line-height:0;}' +
@@ -1355,7 +1363,7 @@ GM_addStyle(
   'position:relative;overflow:visible;z-index:4;}' +
   '#anu-header::before{content:"";position:absolute;inset:0;' +
   'background:linear-gradient(90deg,transparent,rgba(255,255,255,0.03),transparent);' +
-  'background-size:200% 100%;border-radius:inherit;pointer-events:none;}' +
+  'animation:anu-shimmer 8s ease infinite;background-size:200% 100%;border-radius:inherit;pointer-events:none;}' +
   '#anu-header h3{margin:0;font-size:14px;font-weight:700;flex:1;letter-spacing:.15px;' +
   'display:flex;align-items:center;gap:9px;position:relative;z-index:1;}' +
   '#anu-header h3 .anu-logo-text{background:linear-gradient(135deg,' + C.accent + ',' + C.purple + ');' +
@@ -1370,8 +1378,8 @@ GM_addStyle(
   '#anu-session{display:flex;align-items:center;gap:6px;font-size:11px;padding:5px 12px;' +
   'border-radius:99px;cursor:pointer;position:relative;z-index:1;' +
   'border:1px solid transparent;font-weight:600;letter-spacing:.3px;' +
-  'transition:background-color .18s ease,color .18s ease,transform .18s ease;}' +
-  '#anu-session:hover{transform:translateY(-1px);}' +
+  'transition:all .25s ease;backdrop-filter:blur(8px);}' +
+  '#anu-session:hover{transform:translateY(-1px);filter:brightness(1.1);}' +
   '#anu-session:active{transform:scale(.96);}' +
   '#anu-session.ok{background:' + C.greenDim + ';color:#6ee7b7;border-color:rgba(52,211,153,0.15);}' +
   '#anu-session.ok .anu-ic{color:' + C.green + ';}' +
@@ -1425,13 +1433,13 @@ GM_addStyle(
   '#anu-toolbar button{display:inline-flex;align-items:center;gap:6px;' +
   'padding:6px 14px;border-radius:9px;border:1px solid transparent;cursor:pointer;' +
   'font-family:inherit;font-size:12px;font-weight:600;letter-spacing:.2px;' +
-  'transition:background-color .16s ease,border-color .16s ease,color .16s ease,opacity .16s ease,transform .16s ease;position:relative;overflow:hidden;}' +
+  'transition:all .2s ease;position:relative;overflow:hidden;}' +
   '#anu-toolbar button::before{content:"";position:absolute;inset:0;opacity:0;' +
   'background:linear-gradient(135deg,rgba(255,255,255,0.1),transparent);transition:opacity .2s;}' +
   '#anu-toolbar button:hover:not(:disabled)::before{opacity:1;}' +
-  '#anu-toolbar button:hover:not(:disabled){transform:translateY(-1px);}' +
-  '#anu-toolbar button:active:not(:disabled){transform:scale(.97);}' +
-  '#anu-toolbar button:disabled{opacity:.25;cursor:not-allowed;}' +
+  '#anu-toolbar button:hover:not(:disabled){transform:translateY(-1px);filter:brightness(1.1);}' +
+  '#anu-toolbar button:active:not(:disabled){transform:scale(.97);filter:brightness(.95);}' +
+  '#anu-toolbar button:disabled{opacity:.25;cursor:not-allowed;filter:grayscale(.5);}' +
   '#anu-abdm-ctrl button{display:inline-flex;align-items:center;gap:6px;font-family:inherit;}' +
 
   // Button variants
@@ -1448,7 +1456,7 @@ GM_addStyle(
   'box-shadow:0 2px 12px rgba(251,191,36,0.12);}' +
   '.ay:hover:not(:disabled){box-shadow:0 4px 20px rgba(251,191,36,0.25);}' +
   '.agr{background:rgba(255,255,255,0.04);color:' + C.text + ';' +
-  'border:1px solid ' + C.border + ';}' +
+  'border:1px solid ' + C.border + ';backdrop-filter:blur(4px);}' +
   '.agr:hover:not(:disabled){background:rgba(255,255,255,0.07);border-color:' + C.borderLight + ';}' +
   '.am{background:linear-gradient(135deg,#7c3aed,#a78bfa);color:#fff;border-color:rgba(167,139,250,0.2);' +
   'box-shadow:0 2px 12px rgba(167,139,250,0.15);}' +
@@ -1458,7 +1466,7 @@ GM_addStyle(
   '#anu-abdm-label,#anu-idm-label{display:flex;align-items:center;gap:8px;font-size:12px;' +
   'color:' + C.text + ';cursor:pointer;padding:6px 12px;font-weight:500;' +
   'background:rgba(255,255,255,0.03);border-radius:9px;border:1px solid ' + C.border + ';' +
-  'white-space:nowrap;transition:background-color .16s ease,border-color .16s ease,color .16s ease;}' +
+  'white-space:nowrap;transition:all .2s ease;backdrop-filter:blur(4px);}' +
   '#anu-abdm-label:hover,#anu-idm-label:hover{border-color:' + C.borderLight + ';background:rgba(255,255,255,0.06);}' +
   '#anu-abdm-label:has(input:checked),#anu-idm-label:has(input:checked){' +
   'background:' + C.accentDim + ';border-color:rgba(108,140,255,0.3);color:' + C.accentLight + ';}' +
@@ -1483,7 +1491,7 @@ GM_addStyle(
   'display:flex;align-items:center;gap:5px;}' +
   '#anu-filter input{flex:1;background:' + C.bgInput + ';border:1px solid ' + C.border + ';' +
   'color:' + C.text + ';border-radius:8px;padding:6px 12px;font-size:12px;font-family:inherit;outline:none;' +
-  'transition:border-color .16s ease,box-shadow .16s ease;}' +
+  'transition:all .2s ease;backdrop-filter:blur(4px);}' +
   '#anu-filter input:focus{border-color:' + C.accent + ';box-shadow:0 0 0 3px ' + C.accentDim + ';}' +
   '#anu-filter input::placeholder{color:' + C.textDim + ';}' +
 
@@ -1562,7 +1570,7 @@ GM_addStyle(
   'border-radius:0 2px 2px 0;}' +
   '#anu-fill::after{content:"";position:absolute;inset:0;' +
   'background:linear-gradient(90deg,transparent,rgba(255,255,255,0.3),transparent);' +
-  'background-size:200% 100%;}' +
+  'animation:anu-shimmer 2s ease infinite;background-size:200% 100%;}' +
   '#anu-fill.anu-done{background:linear-gradient(90deg,' + C.green + ',' + C.green + ');}' +
 
   // File list
@@ -1575,18 +1583,17 @@ GM_addStyle(
   // File row
   '.anu-row{display:flex;align-items:center;gap:10px;padding:7px 16px;' +
   'border-bottom:1px solid ' + C.borderSub + ';cursor:pointer;border-left:2px solid transparent;' +
-  'transition:background-color .12s ease,border-color .12s ease;animation:anu-fadeIn .2s ease both;' +
-  'content-visibility:auto;contain-intrinsic-size:60px;}' +
+  'transition:all .15s ease;animation:anu-fadeIn .3s ease both;}' +
   '.anu-row:hover{background:' + C.bgRowHov + ';}' +
-  '.anu-row.anu-selected{background:rgba(108,140,255,0.05);' +
+  '.anu-row:has(input[type=checkbox]:checked){background:rgba(108,140,255,0.05);' +
   'border-left-color:' + C.accent + ';}' +
-  '.anu-row.anu-selected:hover{background:rgba(108,140,255,0.09);}' +
+  '.anu-row:has(input[type=checkbox]:checked):hover{background:rgba(108,140,255,0.09);}' +
   '.anu-row input[type=checkbox]{flex-shrink:0;accent-color:' + C.accent + ';cursor:pointer;' +
   'width:15px;height:15px;border-radius:4px;}' +
 
   // File icon
   '.anu-ficon{display:flex;align-items:center;justify-content:center;flex-shrink:0;' +
-  'width:28px;height:28px;border-radius:7px;transition:transform .12s ease;}' +
+  'width:28px;height:28px;border-radius:7px;transition:all .15s ease;}' +
   '.anu-ficon svg{width:15px;height:15px;}' +
   '.anu-ficon-folder{background:rgba(108,140,255,0.1);color:' + C.accent + ';border:1px solid rgba(108,140,255,0.12);}' +
   '.anu-ficon-video{background:rgba(167,139,250,0.1);color:' + C.purple + ';border:1px solid rgba(167,139,250,0.12);}' +
@@ -1607,12 +1614,13 @@ GM_addStyle(
   // Badges — glass effect
   '.anu-bx{font-size:10px;padding:3px 9px;border-radius:99px;white-space:nowrap;' +
   'flex-shrink:0;font-weight:600;letter-spacing:.3px;' +
-  'border:1px solid transparent;}' +
+  'backdrop-filter:blur(4px);border:1px solid transparent;' +
+  'animation:anu-badgePop .25s ease both;}' +
   '.bp{background:' + C.accentDim + ';color:#93c5fd;border-color:rgba(108,140,255,0.1);}' +
   '.bd{background:' + C.greenDim + ';color:#6ee7b7;border-color:rgba(52,211,153,0.15);}' +
   '.be{background:' + C.redDim + ';color:#fca5a5;border-color:rgba(248,113,113,0.15);}' +
   '.ba{background:' + C.amberDim + ';color:#fde68a;border-color:rgba(251,191,36,0.15);' +
-  'animation:anu-pulse 2s ease infinite;}' +
+  'animation:anu-badgePop .25s ease both,anu-pulse 2s ease infinite;}' +
   '.bf{background:rgba(255,255,255,0.03);color:' + C.textMid + ';border-color:' + C.border + ';}' +
 
   // Single download button
@@ -1671,7 +1679,7 @@ GM_addStyle(
   '#anu-list{background:linear-gradient(180deg,rgba(255,255,255,.012),transparent 28%);}' +
   '.anu-row{min-height:45px;padding:8px 18px;border-left-width:3px;}' +
   '.anu-row:hover{box-shadow:inset 0 1px 0 rgba(255,255,255,.025),inset 0 -1px 0 rgba(255,255,255,.02);}' +
-  '.anu-row.anu-selected{box-shadow:inset 0 1px 0 rgba(174,186,255,.08),0 0 20px rgba(99,102,241,.035);}' +
+  '.anu-row:has(input[type=checkbox]:checked){box-shadow:inset 0 1px 0 rgba(174,186,255,.08),0 0 20px rgba(99,102,241,.035);}' +
   '.anu-ficon{width:30px;height:30px;border-radius:9px;}' +
   '.anu-fn{font-weight:550;letter-spacing:.05px;}' +
   '.anu-fs{padding:3px 8px;background:rgba(255,255,255,.045);}' +
@@ -1989,12 +1997,6 @@ function G(id) { return document.getElementById(id); }
 const listEl = G('anu-list');
 const logEl = G('anu-log');
 const extEl = G('anu-ext');
-const rowByPath = new Map();
-const checkboxByPath = new Map();
-const statNodes = {
-  files: G('st'), selected: G('ss'), done: G('sd'), sent: G('se'),
-  failed: G('sf'), size: G('sz'), fill: G('anu-fill'),
-};
 extEl.value = localStorage.getItem(EXT_FILTER_KEY) || '';
 
 function log(msg, cls) {
@@ -2144,35 +2146,27 @@ function passes(name) {
 }
 
 function updateStats() {
-  let files = 0, done = 0, sent = 0, fail = 0, selectedBytes = 0;
-  let allProgressDone = 0, activeFiles = 0, activeProgressDone = 0;
-  const hasDownloadScope = activeDownloadPaths.size > 0;
-  fileList.forEach(function(f) {
-    if (f.is_directory) { return; }
-    files++;
-    const isSelected = selected.has(f.path);
-    const complete = f.status === 'done' || f.status === 'error' ||
-      f.status === 'sent_abdm' || f.status === 'sent_idm';
-    if (f.status === 'done') { done++; }
-    if (f.status === 'error') { fail++; }
-    if (f.status === 'sent_abdm' || f.status === 'sent_idm') { sent++; }
-    if (isSelected) { selectedBytes += f.size || 0; }
-    if (complete) { allProgressDone++; }
-    if (hasDownloadScope ? activeDownloadPaths.has(f.path) : isSelected || f.status !== 'pending') {
-      activeFiles++;
-      if (complete) { activeProgressDone++; }
-    }
-  });
-  statNodes.files.textContent = files;
-  statNodes.selected.textContent = selected.size;
-  statNodes.done.textContent = done;
-  statNodes.sent.textContent = sent;
-  statNodes.failed.textContent = fail;
-  statNodes.size.textContent = selected.size > 0 ? fmt(selectedBytes) : '—';
-  const progressCount = activeFiles || files;
-  const pct = progressCount ? Math.round((activeFiles ? activeProgressDone : allProgressDone) / progressCount * 100) : 0;
+  const files = fileList.filter(function(f) { return !f.is_directory; });
+  const activeFiles = activeDownloadPaths.size
+    ? files.filter(function(f) { return activeDownloadPaths.has(f.path); })
+    : files.filter(function(f) {
+      return selected.has(f.path) || f.status !== 'pending';
+    });
+  const progressFiles = activeFiles.length ? activeFiles : files;
+  const done = files.filter(function(f) { return f.status === 'done'; }).length;
+  const fail = files.filter(function(f) { return f.status === 'error'; }).length;
+  const progressDone = progressFiles.filter(function(f) {
+    return f.status === 'done' || f.status === 'error' || f.status === 'sent_abdm' || f.status === 'sent_idm';
+  }).length;
+  G('st').textContent = files.length;
+  G('ss').textContent = selected.size;
+  G('sd').textContent = done;
+  G('se').textContent = files.filter(function(f) { return f.status === 'sent_abdm' || f.status === 'sent_idm'; }).length;
+  G('sf').textContent = fail;
+  G('sz').textContent = selected.size > 0 ? fmt(totalSize(selected)) : '—';
+  const pct = progressFiles.length ? Math.round(progressDone / progressFiles.length * 100) : 0;
   const busy = downloading || abdmSending || crawling || folderLoading;
-  const fillEl = statNodes.fill;
+  const fillEl = G('anu-fill');
   fillEl.style.width = pct + '%';
   // Green when complete
   if (pct >= 100 && !busy) {
@@ -2267,20 +2261,8 @@ setInterval(function() {
   }
 }, SESSION_AUTO_CHECK_MS);
 
-function syncSelectionUI() {
-  checkboxByPath.forEach(function(chk, path) {
-    const checked = selected.has(path);
-    if (chk.checked === checked) { return; }
-    chk.checked = checked;
-    chk.parentElement.classList.toggle('anu-selected', checked);
-  });
-  updateStats();
-}
-
 function render() {
   ignoreObserver = true;
-  rowByPath.clear();
-  checkboxByPath.clear();
   if (!fileList.length) {
     listEl.innerHTML = '<div class="anu-empty"><span class="anu-empty-icon anu-ic">' + ICON.emptyBox + '</span>Nenhum arquivo encontrado.</div>';
     updateStats();
@@ -2294,7 +2276,6 @@ function render() {
     const row = document.createElement('div');
     row.className = 'anu-row';
     row.dataset.path = f.path;
-    rowByPath.set(f.path, row);
     // Listas grandes entram prontas, sem centenas de animações simultâneas.
     if (fileList.length > 50) { row.style.animation = 'none'; }
     else { row.style.animationDelay = Math.min(index * 6, 90) + 'ms'; }
@@ -2326,30 +2307,24 @@ function render() {
       const chk = document.createElement('input');
       chk.type = 'checkbox';
       chk.checked = selected.has(f.path);
-      row.classList.toggle('anu-selected', chk.checked);
-      checkboxByPath.set(f.path, chk);
       chk.dataset.index = index;
-      let checkboxShift = false;
-      chk.onclick = function(event) { checkboxShift = event.shiftKey; };
       chk.onchange = function(e) {
         const ci = parseInt(chk.dataset.index, 10);
-        const shift = e.shiftKey || checkboxShift;
-        checkboxShift = false;
-        if (shift && lastCheckedIndex !== null && lastCheckedIndex !== ci) {
+        if (e.shiftKey && lastCheckedIndex !== null && lastCheckedIndex !== ci) {
           const start = Math.min(lastCheckedIndex, ci);
           const end = Math.max(lastCheckedIndex, ci);
+          const allChk = listEl.querySelectorAll('input[type=checkbox]');
           for (let i = start; i <= end; i++) {
-            const f2 = fileList[i];
-            if (!f2 || f2.is_directory) { continue; }
-            const cb = checkboxByPath.get(f2.path);
+            const cb = allChk[i];
             if (!cb) { continue; }
             cb.checked = chk.checked;
-            cb.parentElement.classList.toggle('anu-selected', chk.checked);
-            if (chk.checked) { selected.add(f2.path); } else { selected.delete(f2.path); }
+            const f2 = fileList[parseInt(cb.dataset.index, 10)];
+            if (f2) {
+              if (chk.checked) { selected.add(f2.path); } else { selected.delete(f2.path); }
+            }
           }
         } else {
           if (chk.checked) { selected.add(f.path); } else { selected.delete(f.path); }
-          row.classList.toggle('anu-selected', chk.checked);
         }
         lastCheckedIndex = ci;
         updateStats();
@@ -2401,10 +2376,13 @@ function render() {
 
 function refreshBadge(item) {
   ignoreObserver = true;
-  const row = rowByPath.get(item.path);
-  if (row && row.isConnected) {
-    const b = row.querySelector('.anu-bx:not(.bf)');
-    if (b) { b.outerHTML = mkBadge(item.status); }
+  const rows = listEl.querySelectorAll('.anu-row');
+  for (let i = 0; i < rows.length; i++) {
+    if (rows[i].dataset.path === item.path) {
+      const b = rows[i].querySelector('.anu-bx:not(.bf)');
+      if (b) { b.outerHTML = mkBadge(item.status); }
+      break;
+    }
   }
   ignoreObserver = false;
 }
@@ -2450,8 +2428,6 @@ function clickFolderInSite(name) {
 
 function renderSkeleton() {
   ignoreObserver = true;
-  rowByPath.clear();
-  checkboxByPath.clear();
   const rows = [90, 70, 85, 60, 78];
   listEl.innerHTML = rows.map(function(w) {
     return '<div class="anu-skel-row">' +
@@ -2682,16 +2658,16 @@ G('b-all').onclick = function() {
   fileList.forEach(function(f) {
     if (!f.is_directory && passes(f.name)) { selected.add(f.path); }
   });
-  syncSelectionUI();
+  render();
 };
-G('b-none').onclick = function() { selected.clear(); syncSelectionUI(); };
+G('b-none').onclick = function() { selected.clear(); render(); };
 extEl.addEventListener('input', debounce(function() {
   try { localStorage.setItem(EXT_FILTER_KEY, extEl.value); } catch (e) {}
   selected.clear();
   fileList.forEach(function(f) {
     if (!f.is_directory && passes(f.name)) { selected.add(f.path); }
   });
-  syncSelectionUI();
+  render();
 }, 180));
 
 G('b-stop').onclick = function() {
@@ -3158,12 +3134,8 @@ G('b-abdm-stop').onclick = function() {
 function startDownloads(items) {
   if (!items.length || downloading || abdmSending || crawling || folderLoading) { return; }
   activeDownloadPaths = new Set(items.map(function(f) { return f.path; }));
-  items.forEach(function(f) {
-    const changed = f.status !== 'pending';
-    f.status = 'pending'; f.retries = 0;
-    if (changed) { refreshBadge(f); }
-  });
-  updateStats();
+  items.forEach(function(f) { f.status = 'pending'; f.retries = 0; });
+  render();
   if (G('anu-abdm').checked) { sendToABDM(items); }
   else if (G('anu-idm').checked) { sendToIDM(items); }
   else { runQueue(items); }
@@ -3182,28 +3154,21 @@ G('b-retry').onclick = function() {
 let minimised = false;
 
 function keepPanelInViewport() {
-  const maxLeft = Math.max(0, window.innerWidth - panel.offsetWidth);
-  const maxTop = Math.max(0, window.innerHeight - panel.offsetHeight);
+  const r = panel.getBoundingClientRect();
   if (panel.style.left) {
-    const left = parseFloat(panel.style.left);
-    const nextLeft = clamp(left, 0, maxLeft);
-    if (Number.isFinite(left) && nextLeft !== left) { panel.style.left = nextLeft + 'px'; }
+    panel.style.left = clamp(r.left, 0, Math.max(0, window.innerWidth - r.width)) + 'px';
   }
   if (panel.style.top) {
-    const top = parseFloat(panel.style.top);
-    const nextTop = clamp(top, 0, maxTop);
-    if (Number.isFinite(top) && nextTop !== top) { panel.style.top = nextTop + 'px'; }
+    panel.style.top = clamp(r.top, 0, Math.max(0, window.innerHeight - r.height)) + 'px';
   }
 }
 
 function savePanelState() {
   const r = panel.getBoundingClientRect();
-  const left = parseFloat(panel.style.left);
-  const top = parseFloat(panel.style.top);
   writeJsonStorage(PANEL_STATE_KEY, {
-    left: Math.round(Number.isFinite(left) ? left : r.left),
-    top: Math.round(Number.isFinite(top) ? top : r.top),
-    width: panel.offsetWidth,
+    left: Math.round(r.left),
+    top: Math.round(r.top),
+    width: Math.round(r.width),
     minimised: minimised,
   });
 }
@@ -3263,60 +3228,27 @@ consoleToggleBtn.onclick = function() {
 
 setConsoleHidden(localStorage.getItem(CONSOLE_HIDDEN_KEY) === '1', false);
 
-let drag = false, dragStarted = false, pressX = 0, pressY = 0;
-let dragOriginLeft = 0, dragOriginTop = 0, dragLeft = 0, dragTop = 0;
-let dragMaxLeft = 0, dragMaxTop = 0, dragFrame = 0;
+let drag = false, ox = 0, oy = 0;
 G('anu-header').addEventListener('mousedown', function(e) {
   if (e.target.closest && e.target.closest('button,input,select,label')) { return; }
-  e.preventDefault();
   drag = true;
-  dragStarted = false;
-  pressX = e.clientX; pressY = e.clientY;
   const r = panel.getBoundingClientRect();
-  dragOriginLeft = dragLeft = r.left;
-  dragOriginTop = dragTop = r.top;
-  dragMaxLeft = Math.max(0, window.innerWidth - panel.offsetWidth);
-  dragMaxTop = Math.max(0, window.innerHeight - panel.offsetHeight);
+  ox = e.clientX - r.left; oy = e.clientY - r.top;
 });
 document.addEventListener('mousemove', function(e) {
   if (!drag) { return; }
-  const dx = e.clientX - pressX;
-  const dy = e.clientY - pressY;
-  if (!dragStarted) {
-    if (dx * dx + dy * dy < 25) { return; }
-    dragStarted = true;
-    panel.classList.add('anu-positioned', 'anu-dragging');
-    panel.style.right = 'auto'; panel.style.bottom = 'auto';
-    panel.style.left = Math.round(dragOriginLeft) + 'px';
-    panel.style.top = Math.round(dragOriginTop) + 'px';
-  }
-  dragLeft = clamp(dragOriginLeft + dx, 0, dragMaxLeft);
-  dragTop = clamp(dragOriginTop + dy, 0, dragMaxTop);
-  if (dragFrame) { return; }
-  dragFrame = requestAnimationFrame(function() {
-    dragFrame = 0;
-    panel.style.left = Math.round(dragLeft) + 'px';
-    panel.style.top = Math.round(dragTop) + 'px';
-  });
+  const r = panel.getBoundingClientRect();
+  const maxLeft = Math.max(0, window.innerWidth - r.width);
+  const maxTop = Math.max(0, window.innerHeight - r.height);
+  panel.style.right = 'auto'; panel.style.bottom = 'auto';
+  panel.style.left = clamp(e.clientX - ox, 0, maxLeft) + 'px';
+  panel.style.top = clamp(e.clientY - oy, 0, maxTop) + 'px';
 });
-function finishPanelDrag(e) {
+document.addEventListener('mouseup', function() {
   if (!drag) { return; }
   drag = false;
-  if (!dragStarted) { return; }
-  dragStarted = false;
-  if (e && e.type === 'mouseup') {
-    dragLeft = clamp(dragOriginLeft + e.clientX - pressX, 0, dragMaxLeft);
-    dragTop = clamp(dragOriginTop + e.clientY - pressY, 0, dragMaxTop);
-  }
-  if (dragFrame) { cancelAnimationFrame(dragFrame); dragFrame = 0; }
-  panel.style.left = Math.round(dragLeft) + 'px';
-  panel.style.top = Math.round(dragTop) + 'px';
-  panel.style.transform = '';
-  panel.classList.remove('anu-dragging');
   savePanelState();
-}
-document.addEventListener('mouseup', finishPanelDrag);
-window.addEventListener('blur', finishPanelDrag);
+});
 window.addEventListener('resize', debounce(function() {
   keepPanelInViewport();
   savePanelState();
@@ -3324,7 +3256,6 @@ window.addEventListener('resize', debounce(function() {
 restorePanelState();
 if (typeof ResizeObserver !== 'undefined') {
   new ResizeObserver(debounce(function() {
-    if (drag) { return; }
     keepPanelInViewport();
     savePanelState();
   }, 250)).observe(panel);

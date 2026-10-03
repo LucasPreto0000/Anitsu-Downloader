@@ -1,0 +1,4 @@
+# Preserva os bytes e hashes dos userscripts históricos.
+*.js -text
+*.md text eol=lf
+*.json text eol=lf

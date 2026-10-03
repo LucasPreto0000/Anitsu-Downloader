@@ -2,7 +2,7 @@
 // @name         Anitsu Downloader1
 // @name:pt-BR   Anitsu Downloader1
 // @namespace    https://nuvem.anitsu.moe/
-// @version      1.6.8
+// @version      1.6.7
 // @description  Download em massa para o Anitsu Cloud (nuvem.anitsu.moe). Painel flutuante com seleção de arquivos, download direto ou via AB Download Manager, renovação automática de sessão, modo recursivo para baixar pastas inteiras e preview automático da capa do anime (via AniList).
 // @description:pt-BR  Download em massa para o Anitsu Cloud (nuvem.anitsu.moe). Painel flutuante com seleção de arquivos, download direto ou via AB Download Manager, renovação automática de sessão, modo recursivo para baixar pastas inteiras e preview automático da capa do anime (via AniList).
 // @author       TheCyBee & Saitama
@@ -18,8 +18,8 @@
 // @run-at       document-idle
 // @license      MIT
 // @icon         https://nuvem.anitsu.moe/favicon.ico
-// @downloadURL https://raw.githubusercontent.com/LucasPreto0000/Anitsu-Downloader/main/Anitsu-Downloader.user.js
-// @updateURL https://raw.githubusercontent.com/LucasPreto0000/Anitsu-Downloader/main/Anitsu-Downloader.user.js
+// @downloadURL https://update.greasyfork.org/scripts/578627/Anitsu%20Downloader.user.js
+// @updateURL https://update.greasyfork.org/scripts/578627/Anitsu%20Downloader.meta.js
 // ==/UserScript==
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1288,7 +1288,7 @@ function addFolderCover(icon, file, index) {
 // Paleta premium — gradientes e cores ricas
 const C = {
   bg: '#090b12',
-  bgPanel: '#0f121e',
+  bgPanel: 'rgba(15,18,30,0.98)',
   bgHeader: 'rgba(17,20,34,0.96)',
   bgRow: 'rgba(23,27,43,0.52)',
   bgRowHov: 'rgba(38,44,69,0.68)',

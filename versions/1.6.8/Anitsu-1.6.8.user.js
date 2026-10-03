@@ -18,8 +18,8 @@
 // @run-at       document-idle
 // @license      MIT
 // @icon         https://nuvem.anitsu.moe/favicon.ico
-// @downloadURL https://raw.githubusercontent.com/LucasPreto0000/Anitsu-Downloader/main/Anitsu-Downloader.user.js
-// @updateURL https://raw.githubusercontent.com/LucasPreto0000/Anitsu-Downloader/main/Anitsu-Downloader.user.js
+// @downloadURL https://update.greasyfork.org/scripts/578627/Anitsu%20Downloader.user.js
+// @updateURL https://update.greasyfork.org/scripts/578627/Anitsu%20Downloader.meta.js
 // ==/UserScript==
 
 // ═══════════════════════════════════════════════════════════════════════════════
