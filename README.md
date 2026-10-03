@@ -18,7 +18,7 @@ Userscript para o [Anitsu Cloud](https://nuvem.anitsu.moe/) com seleção de arq
 
 ## Instalação
 
-1. Instale o Tampermonkey ou outro gerenciador compatível com as APIs GM usadas no script.
+1. Instale o [Tampermonkey](https://chromewebstore.google.com/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo) ou outro gerenciador compatível com as APIs GM usadas no script.
 2. Abra o [arquivo recomendado](https://github.com/LucasPreto0000/Anitsu-Downloader/releases/download/v1.6.8/Anitsu-Downloader.user.js) e confirme a instalação no gerenciador. Se o navegador baixar o arquivo, importe-o no gerenciador.
 3. Abra o Anitsu Cloud, entre normalmente e navegue até uma pasta.
 4. Use Carregar quando necessário, escolha os arquivos e clique em Baixar.
