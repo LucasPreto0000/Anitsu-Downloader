@@ -13,13 +13,13 @@
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @connect      127.0.0.1
-// @connect      qzrxxwizigfdcpmwkztq.supabase.co
+// @connect      auth.anitsu.moe
 // @connect      graphql.anilist.co
 // @run-at       document-idle
 // @license      MIT
 // @icon         https://nuvem.anitsu.moe/favicon.ico
-// @downloadURL https://raw.githubusercontent.com/LucasPreto0000/Anitsu-Downloader/main/Anitsu-Downloader.user.js
-// @updateURL https://raw.githubusercontent.com/LucasPreto0000/Anitsu-Downloader/main/Anitsu-Downloader.user.js
+// @downloadURL https://raw.githubusercontent.com/LucasPreto0000/Anitsu-Downloader/main/Anitsu.js
+// @updateURL https://raw.githubusercontent.com/LucasPreto0000/Anitsu-Downloader/main/Anitsu.js
 // ==/UserScript==
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -78,10 +78,10 @@ const ABDM_SEND_RETRY_DELAY_MS = 1200;
 // Token dividido em dois cookies (sb-*-auth-token.0 e .1) por ser grande demais.
 // Renovação: POST /auth/v1/token?grant_type=refresh_token via GM_xmlhttpRequest
 // (fetch() não funciona — Supabase retorna ACAO: * incompatível com credentials: include)
-// Anon key: chave pública do projeto, igual para todos. Expira 2033.
+// Anon key: chave pública do site, igual para todos; não é uma credencial pessoal.
 // Para obter nova: DevTools → Network → login Discord → POST /auth/v1/token?grant_type=pkce → header apikey
-const SUPABASE_PROJECT = 'qzrxxwizigfdcpmwkztq';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF6cnh4d2l6aWdmZGNwbXdrenRxIiwicm9sZSI6ImFub24iLCJpYXQiOjE2ODQxODc3MTIsImV4cCI6MTk5OTc2MzcxMn0.M3e2Vvw_HQsDi4U8wDZpM0MFmMDFpm58Og-z6sA5cWw';
+const SUPABASE_AUTH_URL = 'https://auth.anitsu.moe';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzkxNzMwNDI5LCJleHAiOjE5NDk0MTA0Mjl9.vVKdnGvA4q4lZyZlLzQeO7qjc3J8kUlfnEke495fgjU';
 
 // ─── Estado interno ───────────────────────────────────────────────────────────
 let fileList = [];
@@ -133,7 +133,7 @@ const folderViews = new Map();
 const animeOverrides = readJsonStorage('anu-anime-overrides', {}) || {};
 
 // ─── Sessão ───────────────────────────────────────────────────────────────────
-const AUTH_COOKIE_NAME = 'sb-' + SUPABASE_PROJECT + '-auth-token';
+const AUTH_COOKIE_NAME = 'sb-' + new URL(SUPABASE_AUTH_URL).hostname.split('.')[0] + '-auth-token';
 
 function getCookieMap() {
   const result = new Map();
@@ -265,7 +265,7 @@ function refreshSession() {
     try {
       GM_xmlhttpRequest({
         method: 'POST',
-        url: 'https://' + SUPABASE_PROJECT + '.supabase.co/auth/v1/token?grant_type=refresh_token',
+        url: SUPABASE_AUTH_URL + '/auth/v1/token?grant_type=refresh_token',
         headers: {
           'Content-Type': 'application/json',
           'apikey': SUPABASE_ANON_KEY,

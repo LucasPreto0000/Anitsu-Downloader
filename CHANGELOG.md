@@ -6,6 +6,7 @@ A versão recomendada é **1.6.8**, a única publicada nas Releases. Variantes c
 
 ## 1.6.8 — recomendada
 
+- Correção em 16 de outubro de 2026, disponível em Anitsu.js: atualiza autenticação para auth.anitsu.moe, cookie sb-auth-auth-token, chave pública atual e permissão de conexão do Tampermonkey. A cópia histórica abaixo permanece intacta. Reimporte o arquivo corrigido; o número interno 1.6.8 foi mantido.
 - Torna o fundo principal totalmente opaco: substitui rgba(15,18,30,0.98) por #0f121e.
 - Impede que texto e elementos do site apareçam por trás do menu. É a versão recomendada da linha atual.
 
