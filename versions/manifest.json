@@ -1,5 +1,5 @@
 {
-  "recommended": "1.6.8",
+  "recommended": "1.6.9",
   "publishedAt": "2026-10-02",
   "description": "Arquivos históricos preservados byte a byte. publishedAt é a data desta publicação do acervo, não a data original de lançamento.",
   "entries": [
@@ -135,6 +135,13 @@
       "file": "versions/1.6.8/Anitsu-1.6.8.user.js",
       "sha256": "d1b3fdc6c740d0f2f9f7b3859a88c2f0873fa05c38cf3c1dd0522e5188acd288",
       "sourceName": "Anitsu 1.6.8.user.js"
+    },
+    {
+      "version": "1.6.9",
+      "variant": "principal",
+      "file": "versions/1.6.9/Anitsu-1.6.9.user.js",
+      "sha256": "0ebeaa76beba8a2eca45995bc0964278d2739c43ac03799379d36d8f6f8568cd",
+      "sourceName": "Anitsu.js"
     }
   ]
 }

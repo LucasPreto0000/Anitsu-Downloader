@@ -2,7 +2,7 @@
 
 Userscript para o [Anitsu Cloud](https://nuvem.anitsu.moe/) com seleção de arquivos, download em massa, integração com gerenciadores e capas de animes nas pastas.
 
-**Versão recomendada: 1.6.8 corrigida.** [Baixar Anitsu.js](https://github.com/LucasPreto0000/Anitsu-Downloader/releases/download/v1.6.8/Anitsu.js) · [Release atual](https://github.com/LucasPreto0000/Anitsu-Downloader/releases/tag/v1.6.8) · [Histórico de mudanças](CHANGELOG.md)
+**Versão recomendada: 1.6.9.** [Baixar Anitsu-1.6.9.user.js](https://github.com/LucasPreto0000/Anitsu-Downloader/releases/download/v1.6.9/Anitsu-1.6.9.user.js) · [Releases](https://github.com/LucasPreto0000/Anitsu-Downloader/releases) · [Histórico de mudanças](CHANGELOG.md)
 
 ## O que a versão atual oferece
 
@@ -19,7 +19,7 @@ Userscript para o [Anitsu Cloud](https://nuvem.anitsu.moe/) com seleção de arq
 ## Instalação
 
 1. Instale o [Tampermonkey](https://chromewebstore.google.com/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo) ou outro gerenciador compatível com as APIs GM usadas no script.
-2. Baixe [Anitsu.js](https://github.com/LucasPreto0000/Anitsu-Downloader/releases/download/v1.6.8/Anitsu.js) e importe-o no Tampermonkey. Para substituir a versão anterior, confirme a atualização ou desative/remova a cópia antiga; mantenha apenas uma ativa.
+2. Instale [Anitsu-1.6.9.user.js](https://github.com/LucasPreto0000/Anitsu-Downloader/releases/download/v1.6.9/Anitsu-1.6.9.user.js) no Tampermonkey. Para substituir a versão anterior, confirme a atualização ou desative/remova a cópia antiga; mantenha apenas uma ativa.
 3. Abra o Anitsu Cloud, entre normalmente e navegue até uma pasta.
 4. Use Carregar quando necessário, escolha os arquivos e clique em Baixar.
 
@@ -37,12 +37,12 @@ As capas dependem dos resultados e da disponibilidade do AniList. Quando a corre
 
 ## Versões e variantes
 
-Este repositório preserva **19 arquivos históricos distintos**, distribuídos por **15 números de versão**, de 1.5.0 a 1.6.8. Apenas a versão **1.6.8** está disponível nas Releases; as anteriores permanecem na pasta de histórico.
+Este repositório preserva **20 arquivos versionados**, distribuídos por **16 números de versão**, de 1.5.0 a 1.6.9. As Releases disponíveis são 1.6.8 e 1.6.9; as anteriores permanecem na pasta de histórico. Cada atualização futura deve incrementar a versão e criar sua própria Release, com um arquivo Anitsu-VERSÃO.user.js, sem substituir versões anteriores.
 
 - [versions/](versions/) contém os arquivos históricos.
 - [CHANGELOG.md](CHANGELOG.md) explica o que cada versão acrescentou e descreve as variantes.
 - [versions/manifest.json](versions/manifest.json) lista versões, nomes de origem e hashes SHA-256 para conferir a integridade.
-- A Release contém somente Anitsu.js, com a correção de autenticação de 16 de outubro de 2026. Na raiz, Anitsu-Downloader.user.js e Anitsu Downloader.js contêm a mesma implementação e são mantidos por compatibilidade.
+- Cada Release contém um único userscript com o número da versão no nome. A 1.6.9 contém a correção de autenticação de 16 de outubro de 2026. Na raiz, Anitsu.js, Anitsu-Downloader.user.js e Anitsu Downloader.js contêm a versão atual e são mantidos por compatibilidade.
 
 Há arquivos com o mesmo número interno e conteúdos diferentes. As variantes sessao, abdm-legado e detector-legado identificam essas diferenças. Em 1.5.0, original e original-lf diferem apenas nas quebras de linha.
 

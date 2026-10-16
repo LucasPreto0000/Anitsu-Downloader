@@ -2,11 +2,18 @@
 
 Acervo publicado em 2 de outubro de 2026. As datas locais não foram usadas como datas oficiais de lançamento. As descrições abaixo foram reconstruídas a partir da comparação dos arquivos disponíveis. Versões históricas podem conter limitações já corrigidas em versões posteriores.
 
-A versão recomendada é **1.6.8**, a única publicada nas Releases. Variantes com o mesmo número foram preservadas com sufixos; seus números internos `@version` não foram alterados.
+A versão recomendada é **1.6.9**. Cada nova atualização recebe sua própria versão e Release. Variantes históricas com o mesmo número foram preservadas com sufixos; seus números internos `@version` não foram alterados.
 
-## 1.6.8 — recomendada
+## 1.6.9 — recomendada
 
-- Correção em 16 de outubro de 2026, disponível em Anitsu.js: atualiza autenticação para auth.anitsu.moe, cookie sb-auth-auth-token, chave pública atual e permissão de conexão do Tampermonkey. A cópia histórica abaixo permanece intacta. Reimporte o arquivo corrigido; o número interno 1.6.8 foi mantido.
+- Atualiza autenticação para auth.anitsu.moe, cookie sb-auth-auth-token, chave pública atual e permissão de conexão do Tampermonkey.
+- Inclui quatro testes automatizados de leitura de cookies e renovação com respostas simuladas.
+- A correção inicialmente publicada na Release 1.6.8 foi separada nesta versão; a Release 1.6.8 voltou ao arquivo original.
+
+Arquivo: [Anitsu-1.6.9.user.js](versions/1.6.9/Anitsu-1.6.9.user.js).
+
+## 1.6.8
+
 - Torna o fundo principal totalmente opaco: substitui rgba(15,18,30,0.98) por #0f121e.
 - Impede que texto e elementos do site apareçam por trás do menu. É a versão recomendada da linha atual.
 
