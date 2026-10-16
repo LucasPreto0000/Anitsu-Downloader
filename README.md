@@ -2,7 +2,7 @@
 
 Userscript para o [Anitsu Cloud](https://nuvem.anitsu.moe/) com seleção de arquivos, download em massa, integração com gerenciadores e capas de animes nas pastas.
 
-**Versão recomendada: 1.6.8.** [Instalar o userscript](https://github.com/LucasPreto0000/Anitsu-Downloader/releases/download/v1.6.8/Anitsu-Downloader.user.js) · [Release atual](https://github.com/LucasPreto0000/Anitsu-Downloader/releases/tag/v1.6.8) · [Histórico de mudanças](CHANGELOG.md)
+**Versão recomendada: 1.6.8.** [Instalar o userscript](https://github.com/LucasPreto0000/Anitsu-Downloader/releases/download/v1.6.8/Anitsu-1.6.8.user.js) · [Release atual](https://github.com/LucasPreto0000/Anitsu-Downloader/releases/tag/v1.6.8) · [Histórico de mudanças](CHANGELOG.md)
 
 ## O que a versão atual oferece
 
@@ -19,7 +19,7 @@ Userscript para o [Anitsu Cloud](https://nuvem.anitsu.moe/) com seleção de arq
 ## Instalação
 
 1. Instale o Tampermonkey ou outro gerenciador compatível com as APIs GM usadas no script.
-2. Abra o [arquivo recomendado](https://github.com/LucasPreto0000/Anitsu-Downloader/releases/download/v1.6.8/Anitsu-Downloader.user.js) e confirme a instalação no gerenciador. Se o navegador baixar o arquivo, importe-o no gerenciador.
+2. Abra o [arquivo da Release](https://github.com/LucasPreto0000/Anitsu-Downloader/releases/download/v1.6.8/Anitsu-1.6.8.user.js) e confirme a instalação no gerenciador. Se o navegador baixar o arquivo, importe-o no gerenciador.
 3. Abra o Anitsu Cloud, entre normalmente e navegue até uma pasta.
 4. Use Carregar quando necessário, escolha os arquivos e clique em Baixar.
 
@@ -42,11 +42,11 @@ Este repositório preserva **19 arquivos históricos distintos**, distribuídos 
 - [versions/](versions/) contém os arquivos históricos.
 - [CHANGELOG.md](CHANGELOG.md) explica o que cada versão acrescentou e descreve as variantes.
 - [versions/manifest.json](versions/manifest.json) lista versões, nomes de origem e hashes SHA-256 para conferir a integridade.
-- Anitsu-Downloader.user.js é o instalável recomendado. Anitsu Downloader.js contém a mesma implementação e é mantido por compatibilidade com o nome antigo.
+- A Release contém somente Anitsu-1.6.8.user.js, preservado como original. Na raiz, Anitsu-Downloader.user.js e Anitsu Downloader.js contêm a mesma implementação com URLs de atualização deste GitHub e são mantidos por compatibilidade.
 
 Há arquivos com o mesmo número interno e conteúdos diferentes. As variantes sessao, abdm-legado e detector-legado identificam essas diferenças. Em 1.5.0, original e original-lf diferem apenas nas quebras de linha.
 
-Os arquivos em versions/ foram preservados byte a byte. Seus metadados podem apontar para o endereço antigo do Greasy Fork. O instalável recomendado foi ajustado para receber atualizações deste GitHub.
+Os arquivos em versions/ e o arquivo da Release foram preservados byte a byte. Seus metadados podem apontar para o endereço antigo do Greasy Fork. As cópias na raiz usam URLs de atualização deste GitHub.
 
 As notas foram reconstruídas pela comparação do código disponível. A publicação do acervo em 2 de outubro de 2026 não pretende estabelecer datas originais de lançamento nem afirmar que todas as versões históricas foram testadas no site atual.
 
