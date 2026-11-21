@@ -2,7 +2,7 @@
 // @name         Anitsu Downloader1
 // @name:pt-BR   Anitsu Downloader1
 // @namespace    https://nuvem.anitsu.moe/
-// @version      1.6.9
+// @version      1.6.10
 // @description  Download em massa para o Anitsu Cloud (nuvem.anitsu.moe). Painel flutuante com seleção de arquivos, download direto ou via AB Download Manager, renovação automática de sessão, modo recursivo para baixar pastas inteiras e preview automático da capa do anime (via AniList).
 // @description:pt-BR  Download em massa para o Anitsu Cloud (nuvem.anitsu.moe). Painel flutuante com seleção de arquivos, download direto ou via AB Download Manager, renovação automática de sessão, modo recursivo para baixar pastas inteiras e preview automático da capa do anime (via AniList).
 // @author       TheCyBee & Saitama
@@ -10,8 +10,6 @@
 // @grant        GM_addStyle
 // @grant        GM_download
 // @grant        GM_xmlhttpRequest
-// @grant        GM_getValue
-// @grant        GM_setValue
 // @connect      127.0.0.1
 // @connect      auth.anitsu.moe
 // @connect      graphql.anilist.co
@@ -66,7 +64,6 @@ const ABDM_PORT_KEY = 'anu-abdm-port';
 const ABDM_BATCH_KEY = 'anu-abdm-batch';
 const ABDM_INTERVAL_KEY = 'anu-abdm-interval';
 const ABDM_FOLDER_KEY = 'anu-abdm-folder';
-const ABDM_API_KEY_STORAGE = 'anu-abdm-api-key';
 const EXT_FILTER_KEY = 'anu-ext-filter';
 const DOWNLOADER_MODE_KEY = 'anu-downloader-mode';
 const PANEL_STATE_KEY = 'anu-panel-state';
@@ -106,10 +103,6 @@ let abdmSending = false;
 let abdmQueueTimer = null;
 let abdmQueueLoading = false;
 let abdmQueueRefreshRun = 0;
-let abdmApiKeyModalOpen = false;
-let abdmApiKeyTesting = false;
-let lastAbdmAuthNoticeAt = 0;
-let abdmAuthBlocked = false;
 const apiCache = new Map();
 const apiInflight = new Map();
 const anilistCache = new Map(); // query -> { createdAt, media: {...} | null }
@@ -997,34 +990,6 @@ function getAbdmBatch() { return parseIntSafe(localStorage.getItem(ABDM_BATCH_KE
 function getAbdmInterval() { return parseIntSafe(localStorage.getItem(ABDM_INTERVAL_KEY), 30, 1, 999); }
 function getAbdmFolder() { return localStorage.getItem(ABDM_FOLDER_KEY) || ''; }
 
-function getAbdmApiKey() {
-  try {
-    return String(GM_getValue(ABDM_API_KEY_STORAGE, '') || '').trim();
-  } catch (e) {
-    return '';
-  }
-}
-
-function saveAbdmApiKey(value) {
-  const key = String(value || '').trim();
-  try { GM_setValue(ABDM_API_KEY_STORAGE, key); } catch (e) {}
-  return key;
-}
-
-// A chave autentica a chamada ao servidor local do ABDM. O cookie abaixo,
-// enviado dentro do JSON, continua autenticando o arquivo no Anitsu.
-function getAbdmRequestHeaders(includeJson, overrideKey) {
-  const headers = {};
-  if (includeJson) { headers['Content-Type'] = 'application/json'; }
-  const key = overrideKey === undefined ? getAbdmApiKey() : String(overrideKey || '').trim();
-  if (key) { headers['X-Api-Key'] = key; }
-  return headers;
-}
-
-function isAbdmAuthStatus(status) {
-  return Number(status) === 401;
-}
-
 // ─── Preview de anime (AniList) ────────────────────────────────────────────────
 const ANILIST_FIELDS = 'id title { romaji english native } synonyms seasonYear startDate { year } popularity coverImage { medium large } averageScore episodes format siteUrl';
 const ANILIST_QUERY = 'query ($search: String) { Page(perPage: 15) { media(search: $search, type: ANIME) { ' + ANILIST_FIELDS + ' } } }';
@@ -1501,44 +1466,6 @@ GM_addStyle(
   '#anu-abdm-cfg input[type=number]::-webkit-outer-spin-button{' +
   '-webkit-appearance:none;margin:0;}' +
   '#anu-abdm-cfg input:focus,#anu-abdm-cfg select:focus{border-color:' + C.accent + ';}' +
-  '#anu-abdm-key-open{display:inline-flex;align-items:center;gap:7px;padding:6px 10px;' +
-  'border:1px solid ' + C.border + ';border-radius:8px;background:rgba(255,255,255,.04);' +
-  'color:' + C.text + ';font:600 11px "Inter",sans-serif;cursor:pointer;transition:all .2s ease;}' +
-  '#anu-abdm-key-open:hover{background:rgba(255,255,255,.08);border-color:' + C.borderLight + ';}' +
-  '#anu-abdm-key-state{color:' + C.amber + ';font-weight:600;}' +
-  '#anu-abdm-key-state.anu-key-ok{color:' + C.green + ';}' +
-
-  // ABDM API key dialog. Kept outside the panel so no edge can clip it.
-  '#anu-abdm-key-modal{position:fixed;inset:0;z-index:100003;display:flex;align-items:center;' +
-  'justify-content:center;padding:20px;background:rgba(3,5,11,.74);backdrop-filter:blur(8px);' +
-  '-webkit-backdrop-filter:blur(8px);opacity:0;visibility:hidden;pointer-events:none;' +
-  'transition:opacity .2s ease,visibility .2s ease;font-family:"Inter",system-ui,sans-serif;}' +
-  '#anu-abdm-key-modal.anu-open{opacity:1;visibility:visible;pointer-events:auto;}' +
-  '#anu-abdm-key-dialog{width:min(440px,calc(100vw - 32px));border-radius:16px;padding:20px;' +
-  'background:rgba(15,18,30,.98);color:' + C.text + ';border:1px solid ' + C.borderLight + ';' +
-  'box-shadow:0 30px 90px rgba(0,0,0,.7),0 0 45px rgba(99,102,241,.18);' +
-  'transform:translateY(10px) scale(.98);transition:transform .2s ease;}' +
-  '#anu-abdm-key-modal.anu-open #anu-abdm-key-dialog{transform:translateY(0) scale(1);}' +
-  '#anu-abdm-key-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;}' +
-  '#anu-abdm-key-head h2{margin:0;font-size:16px;line-height:1.3;color:' + C.text + ';}' +
-  '#anu-abdm-key-close{width:28px;height:28px;flex:0 0 28px;border-radius:8px;border:1px solid ' + C.border + ';' +
-  'background:rgba(255,255,255,.04);color:' + C.textMid + ';cursor:pointer;font-size:18px;line-height:1;}' +
-  '#anu-abdm-key-close:hover{color:' + C.text + ';background:rgba(255,255,255,.08);}' +
-  '#anu-abdm-key-description{margin:10px 0 12px;color:' + C.textMid + ';font-size:12px;line-height:1.55;}' +
-  '#anu-abdm-key-path{margin:0 0 13px;padding:9px 10px;border-radius:9px;background:' + C.accentDim + ';' +
-  'color:' + C.accentLight + ';font-size:11px;line-height:1.45;border:1px solid rgba(130,148,255,.16);}' +
-  '#anu-abdm-key-input{box-sizing:border-box;width:100%;height:38px;padding:0 12px;border-radius:9px;' +
-  'border:1px solid ' + C.borderLight + ';background:' + C.bgInput + ';color:' + C.text + ';outline:none;' +
-  'font:500 13px "JetBrains Mono",Consolas,monospace;letter-spacing:.4px;}' +
-  '#anu-abdm-key-input:focus{border-color:' + C.accent + ';box-shadow:0 0 0 3px ' + C.accentDim + ';}' +
-  '#anu-abdm-key-error{min-height:18px;margin:7px 0 2px;color:#fca5a5;font-size:11px;line-height:1.4;}' +
-  '#anu-abdm-key-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:8px;}' +
-  '#anu-abdm-key-actions button{min-height:34px;padding:7px 13px;border-radius:9px;font:600 12px "Inter",sans-serif;cursor:pointer;}' +
-  '#anu-abdm-key-later{border:1px solid ' + C.border + ';background:rgba(255,255,255,.04);color:' + C.textMid + ';}' +
-  '#anu-abdm-key-save{border:0;background:linear-gradient(135deg,#5b7cff,#7c6cff);color:#fff;' +
-  'box-shadow:0 4px 16px rgba(108,140,255,.25);}' +
-  '#anu-abdm-key-actions button:disabled{opacity:.5;cursor:wait;}' +
-
   // ABDM controls
   '#anu-abdm-ctrl{display:none;gap:7px;align-items:center;' +
   'padding:8px 16px;border-bottom:1px solid ' + C.border + ';' +
@@ -1922,12 +1849,6 @@ panel.innerHTML =
         '<label>Pasta destino:</label>' +
         '<input id="anu-abdm-folder" placeholder="ex: D:/Downloads/Animes  (vazio = padrão do ABDM)" style="flex:1" />' +
       '</div>' +
-      '<div id="anu-abdm-auth-row" class="anu-cfg-row" style="margin-top:4px">' +
-        '<label>Autenticação:</label>' +
-        '<button id="anu-abdm-key-open" type="button" title="Configurar a chave API do ABDM">' +
-          'Chave API <b id="anu-abdm-key-state">sem chave</b>' +
-        '</button>' +
-      '</div>' +
     '</div>' +
     '<div id="anu-abdm-ctrl">' +
       '<button id="b-abdm-next" class="ab" style="display:none"><span class="anu-ic">' + ICON.skip + '</span>Próximo lote agora</button>' +
@@ -1961,26 +1882,6 @@ panel.innerHTML =
 
 document.body.appendChild(panel);
 
-const abdmKeyModal = document.createElement('div');
-abdmKeyModal.id = 'anu-abdm-key-modal';
-abdmKeyModal.setAttribute('aria-hidden', 'true');
-abdmKeyModal.innerHTML =
-  '<div id="anu-abdm-key-dialog" role="dialog" aria-modal="true" aria-labelledby="anu-abdm-key-title">' +
-    '<div id="anu-abdm-key-head">' +
-      '<h2 id="anu-abdm-key-title">Chave API do AB Download Manager</h2>' +
-      '<button id="anu-abdm-key-close" type="button" aria-label="Fechar" title="Fechar">×</button>' +
-    '</div>' +
-    '<p id="anu-abdm-key-description">O ABDM 1.10 ou mais recente pode proteger a integração local com uma chave. Ela só é necessária quando a opção <b>Usar chave API</b> está ativada.</p>' +
-    '<p id="anu-abdm-key-path"><b>Onde encontrar:</b> ABDM → Configurações → Integração com Navegadores → Chave API</p>' +
-    '<input id="anu-abdm-key-input" type="password" autocomplete="off" spellcheck="false" aria-label="Chave API do ABDM" placeholder="Cole aqui a chave API" />' +
-    '<div id="anu-abdm-key-error" role="status" aria-live="polite"></div>' +
-    '<div id="anu-abdm-key-actions">' +
-      '<button id="anu-abdm-key-later" type="button">Agora não</button>' +
-      '<button id="anu-abdm-key-save" type="button">Salvar e verificar</button>' +
-    '</div>' +
-  '</div>';
-document.body.appendChild(abdmKeyModal);
-
 requestAnimationFrame(function() {
   requestAnimationFrame(function() { panel.classList.add('anu-mounted'); });
 });
@@ -2012,121 +1913,6 @@ function log(msg, cls) {
   }
   logEl.scrollTop = logEl.scrollHeight;
 }
-
-function updateAbdmApiKeyStatus(invalid) {
-  const state = G('anu-abdm-key-state');
-  const row = G('anu-abdm-auth-row');
-  if (!state || !row) { return; }
-  const configured = !!getAbdmApiKey();
-  state.textContent = invalid && configured ? 'chave inválida' : (configured ? 'configurada' : 'sem chave');
-  state.classList.toggle('anu-key-ok', configured && !invalid);
-  row.style.display = configured && !invalid ? 'none' : 'flex';
-}
-
-function setAbdmApiKeyModalBusy(value) {
-  abdmApiKeyTesting = !!value;
-  G('anu-abdm-key-save').disabled = abdmApiKeyTesting;
-  G('anu-abdm-key-later').disabled = abdmApiKeyTesting;
-  G('anu-abdm-key-close').disabled = abdmApiKeyTesting;
-  G('anu-abdm-key-save').textContent = abdmApiKeyTesting ? 'Verificando…' : 'Salvar e verificar';
-}
-
-function showAbdmApiKeyModal(message) {
-  const wasOpen = abdmApiKeyModalOpen;
-  abdmApiKeyModalOpen = true;
-  abdmKeyModal.classList.add('anu-open');
-  abdmKeyModal.setAttribute('aria-hidden', 'false');
-  G('anu-abdm-key-error').textContent = message || '';
-  if (!wasOpen) { G('anu-abdm-key-input').value = ''; }
-  setTimeout(function() { G('anu-abdm-key-input').focus(); }, 30);
-}
-
-function hideAbdmApiKeyModal() {
-  if (abdmApiKeyTesting) { return; }
-  abdmApiKeyModalOpen = false;
-  abdmKeyModal.classList.remove('anu-open');
-  abdmKeyModal.setAttribute('aria-hidden', 'true');
-  G('anu-abdm-key-input').value = '';
-  G('anu-abdm-key-error').textContent = '';
-}
-
-function probeAbdmApiKey(apiKey) {
-  return new Promise(function(resolve) {
-    GM_xmlhttpRequest({
-      method: 'POST',
-      url: 'http://127.0.0.1:' + getAbdmPort() + '/ping',
-      headers: getAbdmRequestHeaders(true, apiKey),
-      data: 'null',
-      timeout: 4000,
-      onload: function(r) {
-        resolve({
-          ok: r.status >= 200 && r.status < 300,
-          auth: isAbdmAuthStatus(r.status),
-          status: Number(r.status) || 0,
-        });
-      },
-      onerror: function() { resolve({ ok: false, auth: false, status: 0 }); },
-      ontimeout: function() { resolve({ ok: false, auth: false, status: 0 }); },
-    });
-  });
-}
-
-function handleAbdmAuthFailure(action) {
-  const now = Date.now();
-  if (now - lastAbdmAuthNoticeAt > 1500) {
-    log('✗ O ABDM recusou a chave API' + (action ? ' ao ' + action : '') + '. Informe a chave correta.', 'lerr');
-    lastAbdmAuthNoticeAt = now;
-  }
-  updateAbdmApiKeyStatus(true);
-  showAbdmApiKeyModal('Chave ausente ou incorreta. Copie novamente a chave mostrada no ABDM.');
-}
-
-G('anu-abdm-key-open').onclick = function() {
-  showAbdmApiKeyModal(getAbdmApiKey()
-    ? 'Já existe uma chave salva. Cole uma nova chave para substituí-la.'
-    : 'Cole a chave exibida nas configurações do ABDM.');
-};
-G('anu-abdm-key-close').onclick = hideAbdmApiKeyModal;
-G('anu-abdm-key-later').onclick = hideAbdmApiKeyModal;
-G('anu-abdm-key-input').addEventListener('keydown', function(e) {
-  if (e.key === 'Enter') { e.preventDefault(); G('anu-abdm-key-save').click(); }
-});
-document.addEventListener('keydown', function(e) {
-  if (e.key === 'Escape' && abdmApiKeyModalOpen) { hideAbdmApiKeyModal(); }
-});
-
-G('anu-abdm-key-save').onclick = function() {
-  if (abdmApiKeyTesting) { return; }
-  const candidate = G('anu-abdm-key-input').value.trim();
-  if (!candidate) {
-    G('anu-abdm-key-error').textContent = 'Cole uma chave antes de continuar.';
-    G('anu-abdm-key-input').focus();
-    return;
-  }
-
-  G('anu-abdm-key-error').textContent = '';
-  setAbdmApiKeyModalBusy(true);
-  probeAbdmApiKey(candidate).then(function(result) {
-    setAbdmApiKeyModalBusy(false);
-    if (result.auth) {
-      G('anu-abdm-key-error').textContent = 'O ABDM recusou essa chave. Confira e tente novamente.';
-      G('anu-abdm-key-input').select();
-      return;
-    }
-
-    saveAbdmApiKey(candidate);
-    updateAbdmApiKeyStatus();
-    hideAbdmApiKeyModal();
-    if (result.ok) {
-      log('✓ Chave API do ABDM salva e verificada.', 'lok');
-    } else {
-      log('Chave API salva. Não foi possível testá-la porque o ABDM não respondeu.', 'lwrn');
-    }
-    if (G('anu-abdm').checked) { startAbdmQueueAutoRefresh(); }
-  });
-};
-
-updateAbdmApiKeyStatus();
 
 function getExts() {
   if (extEl.value === extCacheRaw) { return extCacheList; }
@@ -2868,7 +2654,6 @@ function loadAbdmQueues(done) {
   GM_xmlhttpRequest({
     method: 'GET',
     url: 'http://127.0.0.1:' + getAbdmPort() + '/queues',
-    headers: getAbdmRequestHeaders(false),
     timeout: 3500,
     onload: function(r) {
       if (r.status >= 200 && r.status < 300) {
@@ -2884,8 +2669,6 @@ function loadAbdmQueues(done) {
             sel.value = previous;
           }
         } catch (e) {}
-      } else if (isAbdmAuthStatus(r.status)) {
-        handleAbdmAuthFailure('carregar as filas');
       }
       finish();
     },
@@ -2907,7 +2690,18 @@ function updateAbdmControls() {
 }
 
 function abdmPing() {
-  return probeAbdmApiKey(getAbdmApiKey());
+  return new Promise(function(resolve) {
+    GM_xmlhttpRequest({
+      method: 'POST',
+      url: 'http://127.0.0.1:' + getAbdmPort() + '/ping',
+      headers: { 'Content-Type': 'application/json' },
+      data: 'null',
+      timeout: 4000,
+      onload: function(r) { resolve(r.status); },
+      onerror: function() { resolve(0); },
+      ontimeout: function() { resolve(0); },
+    });
+  });
 }
 
 // Envia um único item ao ABDM, com re-tentativas automáticas em caso de
@@ -2934,18 +2728,12 @@ function sendItemToABDM(item, queueId, folder, port, authCookies, attempt) {
     GM_xmlhttpRequest({
       method: 'POST',
       url: 'http://127.0.0.1:' + port + '/start-headless-download',
-      headers: getAbdmRequestHeaders(true),
+      headers: { 'Content-Type': 'application/json' },
       data: JSON.stringify(body),
       timeout: 12000,
       onload: function(r) {
         if (r.status >= 200 && r.status < 300) {
           resolve(true);
-          return;
-        }
-        if (isAbdmAuthStatus(r.status)) {
-          abdmAuthBlocked = true;
-          handleAbdmAuthFailure('enviar o download');
-          resolve(false);
           return;
         }
         // 4xx = link/parâmetros inválidos, não adianta re-tentar.
@@ -2997,7 +2785,7 @@ function sendBatchToABDM(batch) {
   let allOk = true;
 
   function sendOne(index) {
-    if (stopped || !abdmSending || abdmAuthBlocked) { return Promise.resolve(false); }
+    if (stopped || !abdmSending) { return Promise.resolve(false); }
     if (index >= batch.length) { return Promise.resolve(allOk); }
     const item = batch[index];
     return sendItemToABDM(item, queueId, folder, port, authCookies, 0).then(function(ok) {
@@ -3007,8 +2795,6 @@ function sendBatchToABDM(batch) {
         allOk = false;
         item.status = 'error'; refreshBadge(item); updateStats();
       }
-      // Se a chave foi recusada, não envie o restante do lote com a mesma chave.
-      if (abdmAuthBlocked) { return false; }
       return new Promise(function(resolve) {
         setTimeout(function() { sendOne(index + 1).then(resolve); }, 200);
       });
@@ -3099,13 +2885,11 @@ function abdmSendNextBatch() {
   const batch = abdmQueue.slice(abdmOffset, abdmOffset + batchSize);
   const batchNum = Math.floor(abdmOffset / batchSize) + 1;
   const totalBatches = Math.ceil(abdmQueue.length / batchSize);
-  abdmPing().then(function(result) {
-    if (!result.ok) {
-      if (result.auth) {
-        handleAbdmAuthFailure('iniciar o envio');
-      } else {
-        log('✗ ABDM não responde. Verifique se está aberto e se a porta está correta.', 'lerr');
-      }
+  abdmPing().then(function(status) {
+    if (status < 200 || status >= 300) {
+      log(status
+        ? '✗ ABDM recusou a conexão (HTTP ' + status + '). Verifique se a integração local está ativa e com a chave API desativada.'
+        : '✗ ABDM não responde. Verifique se está aberto e se a porta está correta.', 'lerr');
       abdmSending = false; activeDownloadPaths.clear(); updateAbdmControls(); return;
     }
     log('Lote ' + batchNum + '/' + totalBatches + ': enviando ' + batch.length + ' arquivo(s)…', 'linf');
@@ -3136,7 +2920,6 @@ function abdmSendNextBatch() {
 function sendToABDM(items) {
   if (!items.length) { return; }
   abdmQueue = items.slice(); abdmOffset = 0; abdmSending = true;
-  abdmAuthBlocked = false;
   stopped = false;
   clearTimeout(abdmTimer);
   log('Iniciando envio — ' + items.length + ' arquivo(s) em lotes de ' + getAbdmBatch() + '.', 'linf');
@@ -3364,14 +3147,6 @@ const breadcrumbMountObserver = new MutationObserver(function() {
 breadcrumbMountObserver.observe(document.body, { childList: true, subtree: true });
 observeBreadcrumb();
 log('Detecção automática ativa. Navegue por qualquer pasta para carregar automaticamente.', 'linf');
-
-// Detecta automaticamente se o ABDM está exigindo autenticação. Um erro de
-// conexão significa apenas que o app está fechado/porta incorreta e não abre o popup.
-setTimeout(function() {
-  probeAbdmApiKey(getAbdmApiKey()).then(function(result) {
-    if (result.auth) { handleAbdmAuthFailure('conectar'); }
-  });
-}, 550);
 
 setTimeout(function() {
   if (activeLoadId !== 0) { return; }

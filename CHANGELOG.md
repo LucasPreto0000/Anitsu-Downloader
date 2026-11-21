@@ -2,9 +2,16 @@
 
 Acervo publicado em 2 de outubro de 2026. As datas locais não foram usadas como datas oficiais de lançamento. As descrições abaixo foram reconstruídas a partir da comparação dos arquivos disponíveis. Versões históricas podem conter limitações já corrigidas em versões posteriores.
 
-A versão recomendada é **1.6.9**. Cada nova atualização recebe sua própria versão e Release. Variantes históricas com o mesmo número foram preservadas com sufixos; seus números internos `@version` não foram alterados.
+A versão recomendada é **1.6.10**. Cada nova atualização recebe sua própria versão e Release. Variantes históricas com o mesmo número foram preservadas com sufixos; seus números internos `@version` não foram alterados.
 
-## 1.6.9 — recomendada
+## 1.6.10 — recomendada
+
+- Remove o campo, o popup e o envio da chave API do ABDM. A integração local funciona com a opção de chave desativada no ABDM.
+- Preserva a sessão do Anitsu usada para acessar os arquivos.
+
+Arquivo: [Anitsu-1.6.10.user.js](versions/1.6.10/Anitsu-1.6.10.user.js).
+
+## 1.6.9
 
 - Atualiza autenticação para auth.anitsu.moe, cookie sb-auth-auth-token, chave pública atual e permissão de conexão do Tampermonkey.
 - Inclui quatro testes automatizados de leitura de cookies e renovação com respostas simuladas.

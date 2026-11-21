@@ -2,7 +2,7 @@
 
 Userscript para o [Anitsu Cloud](https://nuvem.anitsu.moe/) com seleção de arquivos, download em massa, integração com gerenciadores e capas de animes nas pastas.
 
-**Versão recomendada: 1.6.9.** [Baixar Anitsu-1.6.9.user.js](https://github.com/LucasPreto0000/Anitsu-Downloader/releases/download/v1.6.9/Anitsu-1.6.9.user.js) · [Releases](https://github.com/LucasPreto0000/Anitsu-Downloader/releases) · [Histórico de mudanças](CHANGELOG.md)
+**Versão recomendada: 1.6.10.** [Baixar Anitsu-1.6.10.user.js](https://github.com/LucasPreto0000/Anitsu-Downloader/releases/download/v1.6.10/Anitsu-1.6.10.user.js) · [Releases](https://github.com/LucasPreto0000/Anitsu-Downloader/releases) · [Histórico de mudanças](CHANGELOG.md)
 
 ## O que a versão atual oferece
 
@@ -10,7 +10,6 @@ Userscript para o [Anitsu Cloud](https://nuvem.anitsu.moe/) com seleção de arq
 - Seleção por arquivo, Todos/Nenhum, filtro por extensão e seleção em intervalo com Shift.
 - Navegação automática pelas pastas e carregamento recursivo para baixar subpastas.
 - Lotes no ABDM com tamanho, intervalo, fila e pasta de destino configuráveis.
-- Popup de chave API quando o ABDM exige autenticação, com armazenamento pelo gerenciador de userscripts.
 - Persistência e renovação da sessão existente do Anitsu.
 - Detecção de nomes de anime considerando sinônimos, temporada, parte e ano; capas nas pastas via AniList e correção manual por ID.
 - Cache e consultas agrupadas para carregar capas com menos chamadas.
@@ -19,7 +18,7 @@ Userscript para o [Anitsu Cloud](https://nuvem.anitsu.moe/) com seleção de arq
 ## Instalação
 
 1. Instale o [Tampermonkey](https://chromewebstore.google.com/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo) ou outro gerenciador compatível com as APIs GM usadas no script.
-2. Instale [Anitsu-1.6.9.user.js](https://github.com/LucasPreto0000/Anitsu-Downloader/releases/download/v1.6.9/Anitsu-1.6.9.user.js) no Tampermonkey. Para substituir a versão anterior, confirme a atualização ou desative/remova a cópia antiga; mantenha apenas uma ativa.
+2. Instale [Anitsu-1.6.10.user.js](https://github.com/LucasPreto0000/Anitsu-Downloader/releases/download/v1.6.10/Anitsu-1.6.10.user.js) no Tampermonkey. Para substituir a versão anterior, confirme a atualização ou desative/remova a cópia antiga; mantenha apenas uma ativa.
 3. Abra o Anitsu Cloud, entre normalmente e navegue até uma pasta.
 4. Use Carregar quando necessário, escolha os arquivos e clique em Baixar.
 
@@ -27,7 +26,7 @@ Mantenha apenas uma versão do Anitsu Downloader ativa para evitar painéis e op
 
 ## ABDM, IDM e sessão
 
-Para usar o ABDM, abra o aplicativo e ative sua integração com navegadores. A porta padrão do painel é 15151. Se a integração exigir uma chave API, copie a chave das configurações do ABDM e informe-a no popup. Após configurada, a linha de autenticação é ocultada; uma chave recusada volta a abrir a configuração.
+Para usar o ABDM, abra o aplicativo, ative a integração com navegadores e deixe a opção de chave API desativada. A porta padrão do painel é 15151.
 
 O uso do IDM depende do aplicativo e de sua integração estarem instalados e configurados no navegador.
 
@@ -37,7 +36,7 @@ As capas dependem dos resultados e da disponibilidade do AniList. Quando a corre
 
 ## Versões e variantes
 
-Este repositório preserva **20 arquivos versionados**, distribuídos por **16 números de versão**, de 1.5.0 a 1.6.9. As Releases disponíveis são 1.6.8 e 1.6.9; as anteriores permanecem na pasta de histórico. Cada atualização futura deve incrementar a versão e criar sua própria Release, com um arquivo Anitsu-VERSÃO.user.js, sem substituir versões anteriores.
+Este repositório preserva **21 arquivos versionados**, distribuídos por **17 números de versão**, de 1.5.0 a 1.6.10. As Releases disponíveis são 1.6.8, 1.6.9 e 1.6.10; as anteriores permanecem na pasta de histórico. Cada atualização futura deve incrementar a versão e criar sua própria Release, com um arquivo Anitsu-VERSÃO.user.js, sem substituir versões anteriores.
 
 - [versions/](versions/) contém os arquivos históricos.
 - [CHANGELOG.md](CHANGELOG.md) explica o que cada versão acrescentou e descreve as variantes.
